@@ -1,104 +1,82 @@
 import { describe, expect, it } from "vitest";
-import { getStageConfig, stageFromDoors } from "./curve";
+import { getStageConfig, stageFromDoors, type DifficultyMode } from "./curve";
 
-function tiersOf(doors: number) {
-  return getStageConfig(doors).tiers.map((t) => t.tier);
+function tiersOf(doors: number, mode: DifficultyMode = "classic") {
+  return getStageConfig(doors, mode).tiers.map((t) => t.tier);
 }
 
 describe("difficulty curve", () => {
-  it("每 10 门升一段", () => {
+  it("只用前 5 题做整数教学", () => {
     expect(stageFromDoors(0)).toBe(1);
-    expect(stageFromDoors(9)).toBe(1);
-    expect(stageFromDoors(10)).toBe(2);
-    expect(stageFromDoors(90)).toBe(10);
+    expect(stageFromDoors(4)).toBe(1);
+    expect(stageFromDoors(5)).toBe(2);
+    expect(stageFromDoors(14)).toBe(2);
+    expect(stageFromDoors(15)).toBe(3);
+    for (const mode of ["cozy", "classic", "rush"] as const) {
+      expect(tiersOf(0, mode)).toEqual(["literal"]);
+      expect(tiersOf(4, mode)).toEqual(["literal"]);
+      expect(tiersOf(5, mode)).not.toEqual(["literal"]);
+    }
   });
 
-  it("第一段：2 道、大间隙、只有字面量", () => {
-    const c = getStageConfig(0);
+  it("初始速度比旧版更紧凑", () => {
+    const c = getStageConfig(0, "classic");
     expect(c.lanes).toBe(2);
-    expect(c.windowMs).toBeGreaterThanOrEqual(4000);
+    expect(c.windowMs).toBe(3000);
     expect(c.minGap).toBeGreaterThanOrEqual(20);
-    expect(c.hideChance).toBe(0);
-    expect(tiersOf(0)).toEqual(["literal"]);
+    expect(c.resolveMs).toBeLessThanOrEqual(160);
   });
 
-  it("四则进场后每一段都还带着四则", () => {
-    const arith = new Set(["add_sub", "mul_div", "chain", "paren"]);
-    for (let d = 20; d <= 400; d += 5) {
-      expect(tiersOf(d).some((t) => arith.has(t)), `door ${d}`).toBe(true);
-    }
+  it("三种难度有稳定的节奏差", () => {
+    const cozy = getStageConfig(5, "cozy");
+    const classic = getStageConfig(5, "classic");
+    const rush = getStageConfig(5, "rush");
+    expect(cozy.windowMs).toBeGreaterThan(classic.windowMs);
+    expect(classic.windowMs).toBeGreaterThan(rush.windowMs);
+    expect(cozy.minGap).toBeGreaterThan(classic.minGap);
+    expect(classic.minGap).toBeGreaterThan(rush.minGap);
   });
 
-  it("前 140 门始终 2 道，且没有三角/根号/复数", () => {
-    for (let d = 0; d < 140; d++) {
-      const c = getStageConfig(d);
-      expect(c.lanes).toBe(2);
-      expect(c.hideChance).toBe(0);
-      expect(tiersOf(d)).not.toContain("trig");
-      expect(tiersOf(d)).not.toContain("power_root");
-      expect(tiersOf(d)).not.toContain("complex");
-    }
+  it("经典模式在第 6 题开始乘除", () => {
+    expect(tiersOf(5, "classic")).toContain("mul_div");
+    expect(tiersOf(5, "classic")).toContain("add_sub");
   });
 
-  it("两步四则先在 2 道出现（约 60 门），括号更晚", () => {
-    expect(tiersOf(59)).not.toContain("chain");
-    expect(tiersOf(60)).toContain("chain");
-    expect(getStageConfig(60).lanes).toBe(2);
-    for (let d = 60; d < 90; d++) {
-      expect(tiersOf(d)).not.toContain("paren");
-    }
-    expect(tiersOf(90)).toContain("paren");
-    expect(getStageConfig(90).lanes).toBe(2);
+  it("冲刺模式在第 6 题开始两步计算", () => {
+    expect(tiersOf(5, "rush")).toContain("chain");
   });
 
-  it("括号在 2 道上有独立高原（约 100–119 门）", () => {
-    expect(tiersOf(110)).toEqual(["paren"]);
-    expect(getStageConfig(110).lanes).toBe(2);
+  it("轻松模式在第 6 题从加减开始", () => {
+    expect(tiersOf(5, "cozy")).toContain("add_sub");
+    expect(tiersOf(5, "cozy")).not.toContain("chain");
   });
 
-  it("第 3 道在 140 门出现，且窗口和间隙都回让", () => {
-    const before = getStageConfig(139);
-    const debut = getStageConfig(140);
+  it("新增泳道时仍会还时间与间隙", () => {
+    const before = getStageConfig(124, "classic");
+    const debut = getStageConfig(125, "classic");
     expect(before.lanes).toBe(2);
     expect(debut.lanes).toBe(3);
     expect(debut.windowMs).toBeGreaterThan(before.windowMs);
     expect(debut.minGap).toBeGreaterThan(before.minGap);
-    expect(tiersOf(140)).toContain("literal");
   });
 
-  it("3 道上会再走一遍括号，再给负数", () => {
-    expect(tiersOf(170)).toContain("paren");
-    expect(getStageConfig(170).lanes).toBe(3);
-    expect(tiersOf(190)).toContain("negative");
-  });
-
-  it("第 4 道在 200 门出现，随后再出现四道括号", () => {
-    const before = getStageConfig(199);
-    const debut = getStageConfig(200);
+  it("第四道同样独立进场", () => {
+    const before = getStageConfig(184, "classic");
+    const debut = getStageConfig(185, "classic");
     expect(before.lanes).toBe(3);
     expect(debut.lanes).toBe(4);
     expect(debut.windowMs).toBeGreaterThan(before.windowMs);
-    expect(debut.minGap).toBeGreaterThan(before.minGap);
-    expect(tiersOf(220)).toContain("paren");
-    expect(getStageConfig(220).lanes).toBe(4);
   });
 
-  it("三角不在 240 门前出现", () => {
-    for (let d = 0; d < 240; d++) {
-      expect(tiersOf(d)).not.toContain("trig");
-    }
-    expect(tiersOf(240)).toContain("trig");
-  });
-
-  it("遮挡不在 260 门前出现", () => {
-    for (let d = 0; d < 260; d++) {
-      expect(getStageConfig(d).hideChance).toBe(0);
-    }
-    expect(getStageConfig(260).hideChance).toBeGreaterThan(0);
+  it("三角与记忆遮挡仍属后期机制", () => {
+    expect(tiersOf(224, "classic")).not.toContain("trig");
+    expect(tiersOf(225, "classic")).toContain("trig");
+    expect(getStageConfig(244, "classic").hideChance).toBe(0);
+    expect(getStageConfig(245, "classic").hideChance).toBeGreaterThan(0);
   });
 
   it("后期窗口触底不低于 1400ms", () => {
-    expect(getStageConfig(900).windowMs).toBe(1400);
-    expect(getStageConfig(900).lanes).toBe(4);
+    expect(getStageConfig(900, "classic").windowMs).toBe(1400);
+    expect(getStageConfig(900, "classic").lanes).toBe(4);
   });
 });

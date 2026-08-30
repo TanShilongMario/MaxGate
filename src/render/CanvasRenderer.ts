@@ -1,19 +1,40 @@
 import type { FrameSnapshot, IRenderer } from "./types";
 
+const COLORS = {
+  skyTop: "#74d5cf",
+  skyBottom: "#d7f1c6",
+  cream: "#fff9df",
+  creamShade: "#eadfb9",
+  brown: "#6f4d31",
+  brownSoft: "#9a7652",
+  mint: "#35c8ad",
+  mintDark: "#159b89",
+  coral: "#ff7f74",
+  yellow: "#ffd65a",
+  grass: "#77bd69",
+  grassDark: "#4e9d63",
+  road: "#d9b98f",
+  roadEdge: "#f4dfb7",
+};
+
 export class CanvasRenderer implements IRenderer {
   private canvas: HTMLCanvasElement | null = null;
   private ctx: CanvasRenderingContext2D | null = null;
   private w = 1;
   private h = 1;
+  private dpr = 1;
+  private startedAt = performance.now();
   private shake = 0;
+  private lastLives = 3;
 
   mount(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
+    this.ctx = canvas.getContext("2d", { alpha: false });
   }
 
   resize(cssWidth: number, cssHeight: number, dpr: number): void {
     if (!this.canvas) return;
+    this.dpr = dpr;
     this.w = Math.max(1, Math.floor(cssWidth * dpr));
     this.h = Math.max(1, Math.floor(cssHeight * dpr));
     this.canvas.width = this.w;
@@ -25,25 +46,21 @@ export class CanvasRenderer implements IRenderer {
   render(snapshot: FrameSnapshot): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    if (snapshot.resolve && !snapshot.resolve.correct) {
-      this.shake = Math.max(this.shake, 10);
-    }
-    this.shake *= 0.86;
+    const time = (performance.now() - this.startedAt) / 1000;
+    if (snapshot.hud.lives < this.lastLives) this.shake = 5 * this.dpr;
+    this.lastLives = snapshot.hud.lives;
+    this.shake *= 0.78;
 
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (this.shake > 0.4) {
-      ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
+    if (this.shake > 0.25) {
+      ctx.translate(Math.sin(time * 82) * this.shake, Math.cos(time * 67) * this.shake * 0.45);
     }
-
-    this.drawSky(ctx);
-    this.drawRoad(ctx, snapshot.lanes);
-    if (snapshot.door && snapshot.phase !== "menu") {
-      this.drawDoors(ctx, snapshot);
-    }
+    this.drawWorld(ctx, snapshot, time);
+    if (snapshot.door && snapshot.phase !== "menu") this.drawDoors(ctx, snapshot, time);
     if (snapshot.phase === "playing" || snapshot.phase === "resolving") {
-      this.drawPlayer(ctx, snapshot);
-      this.drawResolveBanner(ctx, snapshot);
+      this.drawPlayer(ctx, snapshot, time);
+      if (snapshot.resolve && !snapshot.resolve.correct) this.drawDamageVignette(ctx);
     }
     ctx.restore();
   }
@@ -53,144 +70,267 @@ export class CanvasRenderer implements IRenderer {
     this.ctx = null;
   }
 
-  private drawSky(ctx: CanvasRenderingContext2D): void {
-    const g = ctx.createLinearGradient(0, 0, 0, this.h);
-    g.addColorStop(0, "#2a140c");
-    g.addColorStop(0.45, "#5a2a14");
-    g.addColorStop(1, "#120a08");
-    ctx.fillStyle = g;
+  private drawWorld(ctx: CanvasRenderingContext2D, snap: FrameSnapshot, time: number): void {
+    const sky = ctx.createLinearGradient(0, 0, 0, this.h);
+    sky.addColorStop(0, COLORS.skyTop);
+    sky.addColorStop(0.58, COLORS.skyBottom);
+    sky.addColorStop(1, "#9ad078");
+    ctx.fillStyle = sky;
     ctx.fillRect(0, 0, this.w, this.h);
 
-    ctx.fillStyle = "rgba(255,186,92,0.16)";
+    this.drawCloud(ctx, this.w * 0.14 + Math.sin(time * 0.06) * this.w * 0.03, this.h * 0.13, 0.75);
+    this.drawCloud(ctx, this.w * 0.79 + Math.sin(time * 0.045 + 2) * this.w * 0.035, this.h * 0.23, 0.55);
+
+    ctx.fillStyle = "rgba(255,232,128,0.78)";
     ctx.beginPath();
-    ctx.arc(this.w * 0.72, this.h * 0.16, this.w * 0.18, 0, Math.PI * 2);
+    ctx.arc(this.w * 0.78, this.h * 0.11, this.w * 0.072, 0, Math.PI * 2);
+    ctx.fill();
+
+    this.drawHills(ctx);
+    this.drawRoad(ctx, snap.lanes, time, snap.phase !== "menu");
+    this.drawScenery(ctx, time, snap.phase !== "menu");
+  }
+
+  private drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number): void {
+    const s = this.w * 0.075 * scale;
+    ctx.fillStyle = "rgba(255,255,238,0.8)";
+    ctx.beginPath();
+    ctx.arc(x - s * 0.8, y, s * 0.6, 0, Math.PI * 2);
+    ctx.arc(x, y - s * 0.18, s * 0.85, 0, Math.PI * 2);
+    ctx.arc(x + s * 0.9, y, s * 0.55, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  private drawRoad(ctx: CanvasRenderingContext2D, lanes: number): void {
-    const topY = this.h * 0.28;
-    const topW = this.w * 0.18;
-    const botW = this.w * 0.92;
+  private drawHills(ctx: CanvasRenderingContext2D): void {
+    ctx.fillStyle = "#91c984";
+    ctx.beginPath();
+    ctx.moveTo(0, this.h * 0.34);
+    ctx.quadraticCurveTo(this.w * 0.17, this.h * 0.21, this.w * 0.39, this.h * 0.34);
+    ctx.quadraticCurveTo(this.w * 0.62, this.h * 0.2, this.w, this.h * 0.32);
+    ctx.lineTo(this.w, this.h * 0.5);
+    ctx.lineTo(0, this.h * 0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = COLORS.grass;
+    ctx.fillRect(0, this.h * 0.32, this.w, this.h * 0.68);
+  }
+
+  private drawRoad(ctx: CanvasRenderingContext2D, lanes: number, time: number, moving: boolean): void {
+    const horizonY = this.h * 0.285;
+    const topW = this.w * 0.12;
+    const botW = Math.min(this.w * 1.04, this.h * 0.69);
     const cx = this.w / 2;
 
-    ctx.beginPath();
-    ctx.moveTo(cx - topW / 2, topY);
-    ctx.lineTo(cx + topW / 2, topY);
-    ctx.lineTo(cx + botW / 2, this.h);
-    ctx.lineTo(cx - botW / 2, this.h);
-    ctx.closePath();
-    const rg = ctx.createLinearGradient(0, topY, 0, this.h);
-    rg.addColorStop(0, "#3a2618");
-    rg.addColorStop(1, "#1a100c");
-    ctx.fillStyle = rg;
+    ctx.fillStyle = COLORS.roadEdge;
+    pathTrapezoid(ctx, cx, horizonY, topW * 1.35, botW * 1.12, this.h);
+    ctx.fill();
+    const road = ctx.createLinearGradient(0, horizonY, 0, this.h);
+    road.addColorStop(0, "#d9c5a5");
+    road.addColorStop(1, COLORS.road);
+    ctx.fillStyle = road;
+    pathTrapezoid(ctx, cx, horizonY, topW, botW, this.h);
     ctx.fill();
 
-    ctx.strokeStyle = "rgba(232,196,128,0.28)";
-    ctx.lineWidth = Math.max(1, this.w * 0.004);
-    for (let i = 1; i < lanes; i++) {
-      const t = i / lanes;
-      const x0 = cx - topW / 2 + topW * t;
-      const x1 = cx - botW / 2 + botW * t;
+    const scroll = moving ? (time * 0.58) % 1 : 0.24;
+    for (let row = 0; row < 11; row++) {
+      const p = (row / 10 + scroll) % 1;
+      const q = p * p;
+      const y = horizonY + (this.h - horizonY) * q;
+      const half = lerp(topW / 2, botW / 2, q);
+      ctx.strokeStyle = `rgba(255,249,223,${0.1 + q * 0.2})`;
+      ctx.lineWidth = Math.max(1, this.w * 0.004 * q);
       ctx.beginPath();
-      ctx.moveTo(x0, topY);
-      ctx.lineTo(x1, this.h);
+      ctx.moveTo(cx - half, y);
+      ctx.lineTo(cx + half, y);
       ctx.stroke();
+    }
+
+    ctx.setLineDash([10 * this.dpr, 12 * this.dpr]);
+    ctx.lineDashOffset = moving ? time * 70 * this.dpr : 0;
+    for (let i = 1; i < lanes; i++) {
+      const ratio = i / lanes;
+      ctx.strokeStyle = "rgba(255,249,223,0.56)";
+      ctx.lineWidth = Math.max(1.5, this.w * 0.0035);
+      ctx.beginPath();
+      ctx.moveTo(cx - topW / 2 + topW * ratio, horizonY);
+      ctx.lineTo(cx - botW / 2 + botW * ratio, this.h);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  private drawScenery(ctx: CanvasRenderingContext2D, time: number, moving: boolean): void {
+    const speed = moving ? time * 0.38 : 0.2;
+    for (let i = 0; i < 7; i++) {
+      const p = (i / 7 + speed) % 1;
+      const q = p * p;
+      const y = this.h * 0.3 + this.h * 0.68 * q;
+      const side = i % 2 === 0 ? -1 : 1;
+      const x = this.w / 2 + side * lerp(this.w * 0.1, this.w * 0.53, q);
+      const s = lerp(this.w * 0.014, this.w * 0.09, q);
+      this.drawTree(ctx, x, y, s, i);
     }
   }
 
-  private drawDoors(ctx: CanvasRenderingContext2D, snap: FrameSnapshot): void {
+  private drawTree(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, index: number): void {
+    ctx.fillStyle = "#8b6846";
+    roundRect(ctx, x - s * 0.13, y - s * 0.15, s * 0.26, s * 0.82, s * 0.12);
+    ctx.fill();
+    ctx.fillStyle = index % 3 === 0 ? "#59a96c" : "#63b877";
+    for (const [dx, dy, r] of [[0, -0.55, 0.62], [-0.38, -0.25, 0.48], [0.4, -0.2, 0.46]] as const) {
+      ctx.beginPath();
+      ctx.arc(x + s * dx, y + s * dy, s * r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (s > 22 * this.dpr) {
+      ctx.fillStyle = index % 2 ? COLORS.yellow : "#f6a6ae";
+      ctx.beginPath();
+      ctx.arc(x - s * 0.22, y - s * 0.45, s * 0.08, 0, Math.PI * 2);
+      ctx.arc(x + s * 0.31, y - s * 0.18, s * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  private drawDoors(ctx: CanvasRenderingContext2D, snap: FrameSnapshot, time: number): void {
     const door = snap.door!;
-    const a = easeIn(door.approach);
-    const topY = this.h * 0.28;
-    const y = topY + (this.h * 0.52 - topY) * a;
-    const scale = 0.22 + 0.78 * a;
-    const width = this.w * 0.78 * scale;
-    const height = this.h * 0.22 * scale;
-    const left = (this.w - width) / 2;
-    const laneW = width / snap.lanes;
+    const a = easeApproach(door.approach);
+    const y = lerp(this.h * 0.3, this.h * 0.56, a);
+    const scale = lerp(0.34, 1.05, a);
+    const totalW = Math.min(this.w * 0.9, this.h * 0.57) * scale;
+    const laneW = totalW / snap.lanes;
+    const height = Math.min(this.h * 0.25, this.w * 0.42) * scale;
+    const left = (this.w - totalW) / 2;
 
     for (let i = 0; i < snap.lanes; i++) {
-      const x = left + laneW * i + laneW * 0.06;
-      const w = laneW * 0.88;
-      const highlight =
-        snap.resolve && (i === snap.resolve.answer || (snap.resolve.correct && i === snap.resolve.chosen));
-      const wrong = Boolean(snap.resolve && !snap.resolve.correct && i === snap.resolve.chosen);
+      const x = left + laneW * i + laneW * 0.05;
+      const w = laneW * 0.9;
+      const correctFlash = Boolean(snap.resolve?.correct && i === snap.resolve.answer);
+      const wrongFlash = Boolean(snap.resolve && !snap.resolve.correct && i === snap.resolve.chosen);
+      const pulse = correctFlash ? 0.55 + Math.sin(time * 55) * 0.3 : 0;
 
-      ctx.fillStyle = wrong ? "#5a2218" : highlight ? "#3d4a22" : "#2c2118";
-      ctx.strokeStyle = wrong ? "#e07050" : highlight ? "#c6e06a" : "#d4b06a";
-      ctx.lineWidth = Math.max(2, this.w * 0.008 * scale);
-      roundRect(ctx, x, y, w, height, 10 * scale);
+      ctx.save();
+      if (correctFlash) {
+        ctx.shadowColor = `rgba(255, 244, 125, ${pulse})`;
+        ctx.shadowBlur = 24 * this.dpr * scale;
+      }
+      ctx.fillStyle = "rgba(111,77,49,0.18)";
+      archPath(ctx, x, y + height * 0.045, w, height);
+      ctx.fill();
+      ctx.translate(0, -height * 0.035);
+      ctx.fillStyle = wrongFlash ? "#ffe0d8" : correctFlash ? "#fff7aa" : COLORS.cream;
+      ctx.strokeStyle = wrongFlash ? COLORS.coral : correctFlash ? COLORS.yellow : COLORS.brown;
+      ctx.lineWidth = Math.max(2.5 * this.dpr, this.w * 0.006 * scale);
+      archPath(ctx, x, y, w, height);
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = "#1a120c";
-      ctx.fillRect(x + w * 0.12, y + height * 0.12, w * 0.76, height * 0.28);
+      ctx.fillStyle = correctFlash ? COLORS.mint : "#c6eadf";
+      roundRect(ctx, x + w * 0.12, y + height * 0.16, w * 0.76, height * 0.24, height * 0.1);
+      ctx.fill();
 
-      const label = door.hidden[i] ? "？" : door.labels[i] ?? "";
-      const fontSize = Math.max(14, Math.min(w * 0.22, height * 0.28));
-      ctx.font = `700 ${fontSize}px "Iowan Old Style", "Songti SC", serif`;
+      ctx.fillStyle = "rgba(111,77,49,0.13)";
+      ctx.beginPath();
+      ctx.arc(x + w * 0.8, y + height * 0.65, Math.max(2, w * 0.035), 0, Math.PI * 2);
+      ctx.fill();
+
+      const label = door.hidden[i] ? "?" : door.labels[i] ?? "";
+      const fontSize = Math.max(15 * this.dpr, Math.min(w * 0.27, height * 0.25));
+      ctx.fillStyle = door.hidden[i] ? COLORS.brownSoft : COLORS.brown;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = door.hidden[i] ? "#8a7a68" : "#f4e2b0";
-      fitText(ctx, label, x + w / 2, y + height * 0.68, w * 0.86, fontSize);
+      fitText(ctx, label, x + w / 2, y + height * 0.63, w * 0.84, fontSize);
+      ctx.restore();
     }
   }
 
-  private drawPlayer(ctx: CanvasRenderingContext2D, snap: FrameSnapshot): void {
-    const botW = this.w * 0.92;
+  private drawPlayer(ctx: CanvasRenderingContext2D, snap: FrameSnapshot, time: number): void {
+    const botW = Math.min(this.w * 1.04, this.h * 0.69);
     const left = (this.w - botW) / 2;
     const laneW = botW / snap.lanes;
     const x = left + (snap.playerDisplayX * (snap.lanes - 1) + 0.5) * laneW;
-    const y = this.h * 0.86;
-    const s = this.w * 0.045;
+    const baseY = this.h * 0.84;
+    const s = Math.min(this.w * 0.072, this.h * 0.046);
+    const bob = Math.sin(time * 15) * s * 0.055;
 
-    ctx.fillStyle = snap.resolve?.correct === false ? "#e07050" : "#f2c14e";
+    ctx.save();
+    ctx.translate(x, baseY + bob);
+    ctx.fillStyle = "rgba(78,92,55,0.2)";
     ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.9, s * 0.55, s * 0.28, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, s * 1.62, s * 0.9, s * 0.26, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = "#1e1510";
+    const leg = Math.sin(time * 15) * s * 0.22;
+    ctx.strokeStyle = COLORS.brown;
+    ctx.lineWidth = s * 0.22;
+    ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(x, y - s * 1.6);
-    ctx.quadraticCurveTo(x + s * 0.9, y - s * 0.2, x + s * 0.45, y + s * 0.7);
-    ctx.lineTo(x - s * 0.45, y + s * 0.7);
-    ctx.quadraticCurveTo(x - s * 0.9, y - s * 0.2, x, y - s * 1.6);
-    ctx.closePath();
-    ctx.fill();
+    ctx.moveTo(-s * 0.22, s * 0.78);
+    ctx.lineTo(-s * 0.3 + leg, s * 1.35);
+    ctx.moveTo(s * 0.22, s * 0.78);
+    ctx.lineTo(s * 0.3 - leg, s * 1.35);
+    ctx.stroke();
 
-    ctx.fillStyle = "#f4e2b0";
+    ctx.fillStyle = "#ef9c70";
     ctx.beginPath();
-    ctx.arc(x, y - s * 1.15, s * 0.32, 0, Math.PI * 2);
+    ctx.ellipse(0, s * 0.45, s * 0.65, s * 0.88, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = COLORS.brown;
+    ctx.lineWidth = s * 0.1;
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff2d6";
+    ctx.beginPath();
+    ctx.ellipse(-s * 0.34, -s * 1.03, s * 0.25, s * 0.68, -0.16, 0, Math.PI * 2);
+    ctx.ellipse(s * 0.34, -s * 1.03, s * 0.25, s * 0.68, 0.16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.32, s * 0.72, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = COLORS.brown;
+    ctx.beginPath();
+    ctx.arc(-s * 0.25, -s * 0.37, s * 0.075, 0, Math.PI * 2);
+    ctx.arc(s * 0.25, -s * 0.37, s * 0.075, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = COLORS.brown;
+    ctx.lineWidth = s * 0.06;
+    ctx.beginPath();
+    ctx.arc(0, -s * 0.18, s * 0.15, 0.12, Math.PI - 0.12);
+    ctx.stroke();
+    ctx.restore();
   }
 
-  private drawResolveBanner(ctx: CanvasRenderingContext2D, snap: FrameSnapshot): void {
-    if (!snap.resolve) return;
-    const text = snap.resolve.correct ? "正确 +10" : "选错了 −1 命";
-    ctx.font = `700 ${Math.max(22, this.w * 0.055)}px "Iowan Old Style", "Songti SC", serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = snap.resolve.correct ? "#d5ec8a" : "#f0a090";
-    ctx.shadowColor = "#140c08";
-    ctx.shadowBlur = 12;
-    ctx.fillText(text, this.w / 2, this.h * 0.2);
-    ctx.shadowBlur = 0;
+  private drawDamageVignette(ctx: CanvasRenderingContext2D): void {
+    const g = ctx.createRadialGradient(this.w / 2, this.h / 2, this.w * 0.2, this.w / 2, this.h / 2, this.h * 0.72);
+    g.addColorStop(0, "rgba(255,110,100,0)");
+    g.addColorStop(1, "rgba(255,90,82,0.28)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, this.w, this.h);
   }
 }
 
-function easeIn(t: number): number {
-  // 略加速但仍接近线性，避免门在最后瞬间砸到脸上。
-  return t * (0.35 + 0.65 * t);
+function pathTrapezoid(ctx: CanvasRenderingContext2D, cx: number, topY: number, topW: number, botW: number, bottomY: number): void {
+  ctx.beginPath();
+  ctx.moveTo(cx - topW / 2, topY);
+  ctx.lineTo(cx + topW / 2, topY);
+  ctx.lineTo(cx + botW / 2, bottomY);
+  ctx.lineTo(cx - botW / 2, bottomY);
+  ctx.closePath();
 }
 
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-): void {
+function archPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  const r = w * 0.47;
+  ctx.beginPath();
+  ctx.moveTo(x, y + h);
+  ctx.lineTo(x, y + r);
+  ctx.bezierCurveTo(x, y + r * 0.18, x + w, y + r * 0.18, x + w, y + r);
+  ctx.lineTo(x + w, y + h);
+  ctx.closePath();
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   const rr = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
   ctx.moveTo(x + rr, y);
@@ -201,19 +341,21 @@ function roundRect(
   ctx.closePath();
 }
 
-function fitText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxW: number,
-  fontSize: number,
-): void {
+function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, fontSize: number): void {
   let size = fontSize;
-  ctx.font = `700 ${size}px "Iowan Old Style", "Songti SC", "Noto Serif SC", serif`;
+  const family = 'Nunito, "Noto Sans SC", "PingFang SC", sans-serif';
+  ctx.font = `900 ${size}px ${family}`;
   while (size > 10 && ctx.measureText(text).width > maxW) {
     size -= 1;
-    ctx.font = `700 ${size}px "Iowan Old Style", "Songti SC", "Noto Serif SC", serif`;
+    ctx.font = `900 ${size}px ${family}`;
   }
   ctx.fillText(text, x, y);
+}
+
+function easeApproach(t: number): number {
+  return t * (0.55 + 0.45 * t);
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
 }

@@ -1,6 +1,10 @@
 import type { Game } from "../game/Game";
 import type { RankingAdapter, RunRecord } from "../ranking";
 import type { FrameSnapshot } from "../render/types";
+import {
+  DIFFICULTY_MODES,
+  type DifficultyMode,
+} from "../difficulty/curve";
 
 export function bindScreens(game: Game, ranking: RankingAdapter): {
   sync: (snap: FrameSnapshot) => void;
@@ -10,14 +14,25 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
   const menu = el("screen-menu");
   const rankingScreen = el("screen-ranking");
   const over = el("screen-over");
+  let selectedDifficulty: DifficultyMode = "classic";
+  let previousScore = 0;
+
+  for (const option of document.querySelectorAll<HTMLButtonElement>(".difficulty-option")) {
+    option.addEventListener("click", () => {
+      selectedDifficulty = option.dataset.difficulty as DifficultyMode;
+      for (const peer of document.querySelectorAll(".difficulty-option")) {
+        peer.classList.toggle("selected", peer === option);
+      }
+    });
+  }
 
   el("btn-start").addEventListener("click", () => {
-    game.start();
+    game.start(selectedDifficulty);
     show(overlay, false);
   });
   el("btn-ranking").addEventListener("click", () => void openRanking());
   el("btn-retry").addEventListener("click", () => {
-    game.start();
+    game.start(game.difficulty);
     show(overlay, false);
   });
   el("btn-home").addEventListener("click", () => {
@@ -50,9 +65,22 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
     const inPlay = snap.phase === "playing" || snap.phase === "resolving";
     hud.classList.toggle("hidden", !inPlay);
     if (inPlay) {
-      el("score").textContent = String(snap.hud.score);
+      const scoreNode = el("score");
+      scoreNode.textContent = String(snap.hud.score);
+      if (snap.hud.score > previousScore) {
+        scoreNode.animate(
+          [
+            { transform: "scale(1)", color: "#6f4d31" },
+            { transform: "scale(1.18)", color: "#159b89", offset: 0.45 },
+            { transform: "scale(1)", color: "#6f4d31" },
+          ],
+          { duration: 180, easing: "cubic-bezier(0.23, 1, 0.32, 1)" },
+        );
+      }
+      previousScore = snap.hud.score;
       el("doors").textContent = `${snap.hud.doorsPassed} 扇门`;
       el("stage").textContent = `第 ${snap.hud.stage} 段`;
+      el("difficulty-badge").textContent = DIFFICULTY_MODES[snap.hud.difficulty].label;
       el("lives").textContent = "❤".repeat(snap.hud.lives) + "♡".repeat(Math.max(0, 3 - snap.hud.lives));
     }
 

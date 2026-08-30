@@ -12,7 +12,18 @@ export interface StageConfig {
   tiers: { tier: ExprTier; weight: number }[];
 }
 
-const RESOLVE_MS = 560;
+export type DifficultyMode = "cozy" | "classic" | "rush";
+
+export const DIFFICULTY_MODES: Record<
+  DifficultyMode,
+  { label: string; description: string; speed: number; gap: number; stageBoost: number }
+> = {
+  cozy: { label: "轻松", description: "多一点思考时间", speed: 1.12, gap: 1.2, stageBoost: 0 },
+  classic: { label: "经典", description: "节奏与计算平衡", speed: 1, gap: 1, stageBoost: 1 },
+  rush: { label: "冲刺", description: "更快进入两步计算", speed: 0.84, gap: 0.82, stageBoost: 2 },
+};
+
+const RESOLVE_MS = 150;
 const HIDE_AFTER = 0.38;
 const WINDOW_FLOOR = 1400;
 
@@ -35,7 +46,7 @@ const TABLE: StageRow[] = [
   // 1 扫视：50 vs 3
   {
     lanes: 2,
-    windowMs: 4200,
+    windowMs: 3000,
     minGap: 28,
     hideChance: 0,
     hideCount: 0,
@@ -44,49 +55,49 @@ const TABLE: StageRow[] = [
   // 2 仍是大数，偶尔加减
   {
     lanes: 2,
-    windowMs: 4000,
-    minGap: 20,
+    windowMs: 2820,
+    minGap: 12,
     hideChance: 0,
     hideCount: 0,
     tiers: [
-      { tier: "literal", weight: 85 },
-      { tier: "add_sub", weight: 15 },
+      { tier: "literal", weight: 20 },
+      { tier: "add_sub", weight: 80 },
     ],
   },
   // 3 加减进场，间隙仍宽
   {
     lanes: 2,
-    windowMs: 3800,
-    minGap: 14,
+    windowMs: 2700,
+    minGap: 8,
     hideChance: 0,
     hideCount: 0,
     tiers: [
-      { tier: "literal", weight: 35 },
-      { tier: "add_sub", weight: 65 },
+      { tier: "add_sub", weight: 55 },
+      { tier: "mul_div", weight: 45 },
     ],
   },
   // 4 纯加减高原
   {
     lanes: 2,
-    windowMs: 3600,
-    minGap: 10,
+    windowMs: 2600,
+    minGap: 6,
     hideChance: 0,
     hideCount: 0,
     tiers: [
-      { tier: "add_sub", weight: 90 },
-      { tier: "literal", weight: 10 },
+      { tier: "mul_div", weight: 50 },
+      { tier: "chain", weight: 50 },
     ],
   },
   // 5 乘除进场
   {
     lanes: 2,
-    windowMs: 3500,
-    minGap: 7,
+    windowMs: 2520,
+    minGap: 5,
     hideChance: 0,
     hideCount: 0,
     tiers: [
-      { tier: "add_sub", weight: 45 },
-      { tier: "mul_div", weight: 55 },
+      { tier: "chain", weight: 70 },
+      { tier: "add_sub", weight: 30 },
     ],
   },
   // 6 坐在乘除上
@@ -376,30 +387,44 @@ const TABLE: StageRow[] = [
 ];
 
 export function stageFromDoors(doorsPassed: number): number {
-  return Math.floor(Math.max(0, doorsPassed) / 10) + 1;
+  const doors = Math.max(0, doorsPassed);
+  if (doors < 5) return 1;
+  return Math.floor((doors - 5) / 10) + 2;
 }
 
-export function getStageConfig(doorsPassed: number): StageConfig {
-  const stage = stageFromDoors(doorsPassed);
+export function getStageConfig(
+  doorsPassed: number,
+  mode: DifficultyMode = "classic",
+): StageConfig {
+  const baseStage = stageFromDoors(doorsPassed);
+  const tuning = DIFFICULTY_MODES[mode];
+  const stage = doorsPassed < 5 ? 1 : baseStage + tuning.stageBoost;
+  let config: StageConfig;
   if (stage <= TABLE.length) {
-    return toConfig(stage, TABLE[stage - 1]!);
+    config = toConfig(stage, TABLE[stage - 1]!);
+  } else {
+    const extra = stage - TABLE.length;
+    const last = TABLE[TABLE.length - 1]!;
+    config = toConfig(stage, {
+      ...last,
+      windowMs: Math.max(WINDOW_FLOOR, last.windowMs - extra * 50),
+      minGap: Math.max(0.8, 2 - extra * 0.08),
+      hideChance: Math.min(0.32, last.hideChance + extra * 0.015),
+      hideCount: extra >= 3 ? 2 : 1,
+      tiers: [
+        { tier: "mixed", weight: 40 },
+        { tier: "paren", weight: 25 },
+        { tier: "chain", weight: 15 },
+        { tier: "power_root", weight: 10 },
+        { tier: "complex", weight: 10 },
+      ],
+    });
   }
-  const extra = stage - TABLE.length;
-  const last = TABLE[TABLE.length - 1]!;
-  return toConfig(stage, {
-    ...last,
-    windowMs: Math.max(WINDOW_FLOOR, last.windowMs - extra * 50),
-    minGap: Math.max(0.8, 2 - extra * 0.08),
-    hideChance: Math.min(0.32, last.hideChance + extra * 0.015),
-    hideCount: extra >= 3 ? 2 : 1,
-    tiers: [
-      { tier: "mixed", weight: 40 },
-      { tier: "paren", weight: 25 },
-      { tier: "chain", weight: 15 },
-      { tier: "power_root", weight: 10 },
-      { tier: "complex", weight: 10 },
-    ],
-  });
+  return {
+    ...config,
+    windowMs: Math.max(WINDOW_FLOOR, Math.round(config.windowMs * tuning.speed)),
+    minGap: Math.max(0.8, config.minGap * tuning.gap),
+  };
 }
 
 function toConfig(stage: number, row: StageRow): StageConfig {

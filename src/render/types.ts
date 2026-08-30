@@ -18,6 +18,7 @@ export interface HudSnapshot {
   score: number;
   doorsPassed: number;
   stage: number;
+  difficulty: "cozy" | "classic" | "rush";
 }
 
 export interface FrameSnapshot {

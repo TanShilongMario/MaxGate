@@ -38,4 +38,20 @@ describe("Game 换道不应立刻扣命", () => {
     expect(game.lives).toBe(3);
     expect(game.phase).toBe("playing");
   });
+
+  it("答错后也会推进题目序列，不重复同一题", () => {
+    const game = new Game(new MemoryRanking());
+    game.start("classic");
+    const internal = game as unknown as {
+      gateIndex: number;
+      door: { gate: { correctLane: number } };
+    };
+    game.playerLane = internal.door.gate.correctLane === 0 ? 1 : 0;
+    game.update(360);
+    game.update(3100);
+    expect(game.lives).toBe(2);
+    expect(internal.gateIndex).toBe(1);
+    game.update(200);
+    expect(game.phase).toBe("playing");
+  });
 });

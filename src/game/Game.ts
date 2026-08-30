@@ -1,5 +1,9 @@
 import { createDoorRng, chance, newSeed, pickInt } from "../core/rng";
-import { getStageConfig, type StageConfig } from "../difficulty/curve";
+import {
+  getStageConfig,
+  type DifficultyMode,
+  type StageConfig,
+} from "../difficulty/curve";
 import { generateGate, type GeneratedGate } from "../expressions/generate";
 import type { LaneIntent } from "../input/InputManager";
 import { CLIENT_VERSION, type RankingAdapter, type RunRecord } from "../ranking";
@@ -25,6 +29,8 @@ export class Game {
   playerLane = 0;
   displayX = 0;
   lastRecord: RunRecord | null = null;
+  difficulty: DifficultyMode = "classic";
+  private gateIndex = 0;
 
   private door: ActiveDoor | null = null;
   private resolve:
@@ -37,7 +43,7 @@ export class Game {
 
   constructor(private ranking: RankingAdapter) {}
 
-  start(): void {
+  start(difficulty: DifficultyMode = this.difficulty): void {
     this.phase = "playing";
     this.lives = 3;
     this.score = 0;
@@ -46,6 +52,8 @@ export class Game {
     this.seed = newSeed();
     this.lastRecord = null;
     this.submitted = false;
+    this.difficulty = difficulty;
+    this.gateIndex = 0;
     this.resolve = null;
     this.spawnDoor();
     this.playerLane = Math.floor((this.config.lanes - 1) / 2);
@@ -124,15 +132,16 @@ export class Game {
         score: this.score,
         doorsPassed: this.doorsPassed,
         stage: this.config.stage,
+        difficulty: this.difficulty,
       },
     };
   }
 
   private spawnDoor(): void {
-    this.config = getStageConfig(this.doorsPassed);
+    this.config = getStageConfig(this.doorsPassed, this.difficulty);
     this.maxStage = Math.max(this.maxStage, this.config.stage);
     this.playerLane = clamp(this.playerLane, 0, this.config.lanes - 1);
-    const rng = createDoorRng(this.seed, this.doorsPassed);
+    const rng = createDoorRng(this.seed, this.gateIndex);
     const gate = generateGate(rng, {
       lanes: this.config.lanes,
       minGap: this.config.minGap,
@@ -146,7 +155,7 @@ export class Game {
       hideAfter: this.config.hideAfterRatio,
       approach: 0,
       windowMs: this.config.windowMs,
-      holdMs: this.doorsPassed === 0 ? 900 : 180,
+      holdMs: this.gateIndex === 0 ? 360 : 0,
     };
     if (hideArmed) {
       this.pendingHideCount = Math.min(this.config.hideCount, this.config.lanes);
@@ -177,6 +186,7 @@ export class Game {
     } else {
       this.lives -= 1;
     }
+    this.gateIndex += 1;
     this.phase = "resolving";
     this.resolve = {
       correct,

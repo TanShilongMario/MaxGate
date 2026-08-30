@@ -10,32 +10,53 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#140c08" />
-    <title>数门狂奔 MaxGate</title>
+    <title>数门大冒险 MaxGate</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
     <div id="app">
       <canvas id="game-canvas"></canvas>
       <div id="hud" class="hud hidden" aria-live="polite">
-        <div class="hud-left">
+        <div class="hud-pill hud-left">
           <div class="lives" id="lives"></div>
-          <div class="stage" id="stage">第 1 段</div>
+          <div class="hud-subline">
+            <span class="stage" id="stage">第 1 段</span>
+            <span class="difficulty-badge" id="difficulty-badge">经典</span>
+          </div>
         </div>
-        <div class="hud-right">
+        <div class="hud-pill hud-right">
           <div class="score" id="score">0</div>
           <div class="doors" id="doors">0 扇门</div>
         </div>
       </div>
       <div id="overlay" class="overlay">
         <section id="screen-menu" class="screen">
-          <p class="eyebrow">MAXGATE</p>
-          <h1>数门狂奔</h1>
+          <div class="brand-mark" aria-hidden="true">
+            <span class="brand-leaf">✿</span>
+            <span class="brand-number">9</span>
+          </div>
+          <p class="eyebrow">MAXGATE · 森林数门</p>
+          <h1>数门大冒险</h1>
           <p class="lead">
-            门在接近。左右移动，在窗口关闭前走进<strong>数值最大</strong>的那一扇。
+            算出答案，跑进<strong>数值最大</strong>的那扇门。
           </p>
+          <fieldset class="difficulty-picker">
+            <legend>选择节奏</legend>
+            <div class="difficulty-options">
+              <button type="button" class="difficulty-option" data-difficulty="cozy">
+                <span>轻松</span><small>多一点时间</small>
+              </button>
+              <button type="button" class="difficulty-option selected" data-difficulty="classic">
+                <span>经典</span><small>平衡推荐</small>
+              </button>
+              <button type="button" class="difficulty-option" data-difficulty="rush">
+                <span>冲刺</span><small>快速计算</small>
+              </button>
+            </div>
+          </fieldset>
           <button type="button" class="btn primary" id="btn-start">开始无限模式</button>
           <button type="button" class="btn ghost" id="btn-ranking">个人纪录</button>
-          <p class="hint">键盘 ← → 或 A D · 手机左右滑动 · 竖屏游玩</p>
+          <p class="hint">← → / A D · 手机左右滑动</p>
         </section>
         <section id="screen-ranking" class="screen hidden">
           <p class="eyebrow">LOCAL CACHE</p>
