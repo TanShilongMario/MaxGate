@@ -20,7 +20,7 @@ export const DIFFICULTY_MODES: Record<
 > = {
   cozy: { label: "轻松", description: "多一点思考时间", speed: 1.12, gap: 1.2, stageBoost: 0 },
   classic: { label: "经典", description: "节奏与计算平衡", speed: 1, gap: 1, stageBoost: 1 },
-  rush: { label: "冲刺", description: "更快进入两步计算", speed: 0.84, gap: 0.82, stageBoost: 2 },
+  rush: { label: "冲刺", description: "难题，但留出计算时间", speed: 1.08, gap: 0.82, stageBoost: 2 },
 };
 
 const RESOLVE_MS = 150;

@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import type { FrameSnapshot, IRenderer } from "./types";
 
-const ROAD_WIDTH = 9.6;
+const ROAD_WIDTH = 10.8;
 const ROAD_TILE_LENGTH = 12;
 const ROAD_TILE_COUNT = 18;
 const WORLD_FRONT = 18;
 const WORLD_BACK = WORLD_FRONT - ROAD_TILE_LENGTH * ROAD_TILE_COUNT;
-const GATE_FAR_Z = -52;
+const GATE_FAR_Z = -46;
 const GATE_NEAR_Z = 0.2;
 const PLAYER_Z = 0.2;
 
@@ -424,11 +424,11 @@ export class ThreeRenderer implements IRenderer {
       this.glassMaterials.push(glassMaterial);
 
       const label = snapshot.door!.hidden[lane] ? "?" : snapshot.door!.labels[lane] ?? "";
-      const texture = makeTextTexture(label, label.length > 5 ? 160 : 220, true);
+      const texture = makeTextTexture(label, label.length > 5 ? 210 : 280, true);
       texture.anisotropy = this.renderer?.capabilities.getMaxAnisotropy() ?? 1;
       this.labelTextures.push(texture);
       const text = new THREE.Mesh(
-        new THREE.PlaneGeometry(cellWidth * 0.86, 1.22),
+        new THREE.PlaneGeometry(cellWidth * 0.92, 1.45),
         new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }),
       );
       text.position.set(centerX, 2.15, 0.34);

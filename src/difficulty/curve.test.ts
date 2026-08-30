@@ -31,8 +31,8 @@ describe("difficulty curve", () => {
     const cozy = getStageConfig(5, "cozy");
     const classic = getStageConfig(5, "classic");
     const rush = getStageConfig(5, "rush");
-    expect(cozy.windowMs).toBeGreaterThan(classic.windowMs);
-    expect(classic.windowMs).toBeGreaterThan(rush.windowMs);
+    expect(cozy.windowMs).toBeGreaterThan(rush.windowMs);
+    expect(rush.windowMs).toBeGreaterThan(classic.windowMs);
     expect(cozy.minGap).toBeGreaterThan(classic.minGap);
     expect(classic.minGap).toBeGreaterThan(rush.minGap);
   });
@@ -41,6 +41,11 @@ describe("difficulty curve", () => {
     expect(getStageConfig(0, "cozy").lanes).toBe(2);
     expect(getStageConfig(0, "classic").lanes).toBe(2);
     expect(getStageConfig(0, "rush").lanes).toBe(3);
+  });
+
+  it("冲刺模式用题型和甬道增加难度，而不是压缩计算时间", () => {
+    expect(getStageConfig(0, "rush").windowMs).toBe(3240);
+    expect(getStageConfig(5, "rush").windowMs).toBeGreaterThan(getStageConfig(5, "classic").windowMs);
   });
 
   it("经典模式在第 6 题开始乘除", () => {
