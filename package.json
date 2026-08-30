@@ -1,0 +1,22 @@
+{
+  "name": "maxgate",
+  "version": "0.1.0",
+  "private": true,
+  "description": "数门狂奔 MaxGate — 从多泳道中选择数值最大的门，无限跑酷式网页游戏",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
+  }
+}
