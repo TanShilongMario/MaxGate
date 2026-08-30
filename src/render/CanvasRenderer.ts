@@ -26,6 +26,8 @@ export class CanvasRenderer implements IRenderer {
   private h = 1;
   private dpr = 1;
   private startedAt = performance.now();
+  private lastFrameAt = performance.now();
+  private worldDistance = 0;
   private shake = 0;
   private lastLives = 3;
 
@@ -48,7 +50,12 @@ export class CanvasRenderer implements IRenderer {
   render(snapshot: FrameSnapshot): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    const time = (performance.now() - this.startedAt) / 1000;
+    const now = performance.now();
+    const time = (now - this.startedAt) / 1000;
+    const dt = Math.min(0.05, Math.max(0, (now - this.lastFrameAt) / 1000));
+    this.lastFrameAt = now;
+    const moving = snapshot.phase === "playing" || snapshot.phase === "resolving";
+    if (moving) this.worldDistance += dt * 2.15;
     if (snapshot.hud.lives < this.lastLives) this.shake = 5 * this.dpr;
     this.lastLives = snapshot.hud.lives;
     this.shake *= 0.78;
@@ -96,8 +103,8 @@ export class CanvasRenderer implements IRenderer {
     this.drawCloud(ctx, cloud2X, this.h * 0.23, 0.55, daylight);
 
     this.drawHills(ctx, daylight);
-    this.drawRoad(ctx, snap.lanes, time, snap.phase !== "menu");
-    this.drawScenery(ctx, time, snap.phase !== "menu");
+    this.drawRoad(ctx, snap.lanes);
+    this.drawScenery(ctx);
     this.drawSkySign(ctx, time, daylight);
   }
 
@@ -132,7 +139,7 @@ export class CanvasRenderer implements IRenderer {
     ctx.fillRect(0, horizonY, this.w, this.h - horizonY);
   }
 
-  private drawRoad(ctx: CanvasRenderingContext2D, lanes: number, time: number, moving: boolean): void {
+  private drawRoad(ctx: CanvasRenderingContext2D, lanes: number): void {
     const horizonY = this.h * HORIZON_RATIO;
     const topW = this.w * 0.045;
     const botW = Math.min(this.w * 1.04, this.h * 0.69);
@@ -148,7 +155,7 @@ export class CanvasRenderer implements IRenderer {
     pathTrapezoid(ctx, cx, horizonY, topW, botW, this.h);
     ctx.fill();
 
-    const scroll = moving ? (time * 0.58) % 1 : 0.24;
+    const scroll = (0.24 + this.worldDistance * 0.12) % 1;
     for (let row = 0; row < 11; row++) {
       const p = (row / 10 + scroll) % 1;
       const q = p * p;
@@ -163,7 +170,7 @@ export class CanvasRenderer implements IRenderer {
     }
 
     ctx.setLineDash([10 * this.dpr, 12 * this.dpr]);
-    ctx.lineDashOffset = moving ? time * 70 * this.dpr : 0;
+    ctx.lineDashOffset = -this.worldDistance * 34 * this.dpr;
     for (let i = 1; i < lanes; i++) {
       const ratio = i / lanes;
       ctx.strokeStyle = "rgba(255,249,223,0.56)";
@@ -176,22 +183,28 @@ export class CanvasRenderer implements IRenderer {
     ctx.setLineDash([]);
   }
 
-  private drawScenery(ctx: CanvasRenderingContext2D, time: number, moving: boolean): void {
-    const speed = moving ? time * 0.38 : 0.2;
-    for (let i = 0; i < 7; i++) {
-      const p = (i / 7 + speed) % 1;
+  private drawScenery(ctx: CanvasRenderingContext2D): void {
+    const depthCount = 9;
+    const nearestWorldIndex = Math.ceil(this.worldDistance);
+    for (let i = depthCount; i >= 0; i--) {
+      const worldIndex = nearestWorldIndex + i;
+      const p = 1 - (worldIndex - this.worldDistance) / depthCount;
+      if (p < 0 || p > 1) continue;
       const q = p * p;
       const y = this.h * HORIZON_RATIO + this.h * (1 - HORIZON_RATIO) * q;
-      const sequence = Math.floor(speed * 7) + i;
-      const side = hash01(sequence * 17.13) < 0.5 ? -1 : 1;
-      const scaleJitter = lerp(0.82, 1.12, hash01(sequence * 31.77));
+      const side = hash01(worldIndex * 17.13) < 0.5 ? -1 : 1;
+      const scaleJitter = lerp(0.82, 1.12, hash01(worldIndex * 31.77));
       const s = lerp(this.w * 0.012, this.w * 0.075, q) * scaleJitter;
       const roadTopW = this.w * 0.045 * 1.35;
       const roadBotW = Math.min(this.w * 1.04, this.h * 0.69) * 1.12;
       const outerRoadHalf = lerp(roadTopW / 2, roadBotW / 2, q);
-      const extra = lerp(this.w * 0.018, this.w * 0.075, hash01(sequence * 7.91));
+      const extra = lerp(this.w * 0.018, this.w * 0.075, hash01(worldIndex * 7.91));
       const x = this.w / 2 + side * (outerRoadHalf + s * 1.25 + extra);
-      this.drawTree(ctx, x, y, s, sequence);
+      const fade = Math.min(1, p / 0.1, (1 - p) / 0.08);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, fade);
+      this.drawTree(ctx, x, y, s, worldIndex);
+      ctx.restore();
     }
   }
 
@@ -200,18 +213,8 @@ export class CanvasRenderer implements IRenderer {
     const h = Math.min(this.h * 0.052, 50 * this.dpr);
     const x = (this.w - w) / 2;
     const y = this.h * 0.145 + Math.sin(time * 0.65) * this.dpr * 1.5;
-    const ropeInset = w * 0.18;
 
-    ctx.strokeStyle = `rgba(111,77,49,${0.38 + daylight * 0.3})`;
-    ctx.lineWidth = Math.max(1.5 * this.dpr, this.w * 0.002);
-    ctx.beginPath();
-    ctx.moveTo(x + ropeInset, this.h * 0.025);
-    ctx.lineTo(x + ropeInset, y + h * 0.08);
-    ctx.moveTo(x + w - ropeInset, this.h * 0.025);
-    ctx.lineTo(x + w - ropeInset, y + h * 0.08);
-    ctx.stroke();
-
-    ctx.fillStyle = "rgba(111,77,49,0.16)";
+    ctx.fillStyle = `rgba(111,77,49,${0.1 + daylight * 0.08})`;
     roundRect(ctx, x, y + h * 0.09, w, h, h * 0.42);
     ctx.fill();
     ctx.fillStyle = "#fff4cf";
@@ -250,15 +253,22 @@ export class CanvasRenderer implements IRenderer {
     const door = snap.door!;
     const a = easeApproach(door.approach);
     const horizonY = this.h * HORIZON_RATIO;
-    const y = lerp(horizonY + this.h * 0.012, this.h * 0.63, a);
-    const roadProgress = (y - horizonY) / (this.h - horizonY);
+    const groundProgress = lerp(0.035, 0.72, a);
+    const baseY = horizonY + (this.h - horizonY) * groundProgress;
     const roadTopW = this.w * 0.045;
     const roadBotW = Math.min(this.w * 1.04, this.h * 0.69);
-    const roadWidth = lerp(roadTopW, roadBotW, roadProgress);
-    const totalW = Math.max(this.w * 0.23, roadWidth * 0.92);
+    const roadWidth = lerp(roadTopW, roadBotW, groundProgress);
+    const readableMinWidth = Math.min(this.w * 0.18, 72 * this.dpr);
+    const totalW = Math.max(readableMinWidth, roadWidth * 0.9);
     const laneW = totalW / snap.lanes;
-    const height = Math.min(this.h * 0.19, laneW * 1.55);
+    const height = Math.min(this.h * 0.18, Math.max(38 * this.dpr, laneW * 1.42));
+    const topY = baseY - height;
     const left = (this.w - totalW) / 2;
+
+    ctx.fillStyle = `rgba(89,67,42,${lerp(0.08, 0.2, a)})`;
+    ctx.beginPath();
+    ctx.ellipse(this.w / 2, baseY + height * 0.035, totalW * 0.48, height * 0.085, 0, 0, Math.PI * 2);
+    ctx.fill();
 
     for (let i = 0; i < snap.lanes; i++) {
       const x = left + laneW * i + laneW * 0.05;
@@ -272,24 +282,20 @@ export class CanvasRenderer implements IRenderer {
         ctx.shadowColor = `rgba(255, 244, 125, ${pulse})`;
         ctx.shadowBlur = 24 * this.dpr * lerp(0.45, 1, a);
       }
-      ctx.fillStyle = "rgba(111,77,49,0.18)";
-      archPath(ctx, x, y + height * 0.045, w, height);
-      ctx.fill();
-      ctx.translate(0, -height * 0.035);
       ctx.fillStyle = wrongFlash ? "#ffe0d8" : correctFlash ? "#fff7aa" : COLORS.cream;
       ctx.strokeStyle = wrongFlash ? COLORS.coral : correctFlash ? COLORS.yellow : COLORS.brown;
       ctx.lineWidth = Math.max(2.5 * this.dpr, this.w * 0.006 * lerp(0.45, 1, a));
-      archPath(ctx, x, y, w, height);
+      archPath(ctx, x, topY, w, height);
       ctx.fill();
       ctx.stroke();
 
       ctx.fillStyle = correctFlash ? COLORS.mint : "#c6eadf";
-      roundRect(ctx, x + w * 0.12, y + height * 0.16, w * 0.76, height * 0.24, height * 0.1);
+      roundRect(ctx, x + w * 0.12, topY + height * 0.16, w * 0.76, height * 0.24, height * 0.1);
       ctx.fill();
 
       ctx.fillStyle = "rgba(111,77,49,0.13)";
       ctx.beginPath();
-      ctx.arc(x + w * 0.8, y + height * 0.65, Math.max(2, w * 0.035), 0, Math.PI * 2);
+      ctx.arc(x + w * 0.8, topY + height * 0.65, Math.max(2, w * 0.035), 0, Math.PI * 2);
       ctx.fill();
 
       const label = door.hidden[i] ? "?" : door.labels[i] ?? "";
@@ -297,7 +303,7 @@ export class CanvasRenderer implements IRenderer {
       ctx.fillStyle = door.hidden[i] ? COLORS.brownSoft : COLORS.brown;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      fitText(ctx, label, x + w / 2, y + height * 0.63, w * 0.84, fontSize);
+      fitText(ctx, label, x + w / 2, topY + height * 0.63, w * 0.84, fontSize);
       ctx.restore();
     }
   }
