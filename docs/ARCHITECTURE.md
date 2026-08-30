@@ -59,6 +59,9 @@ menu ──start──► playing ──life=0──► gameover ──home─�
                   │                    │
                   │                    └──retry──► playing
                   └──(每扇门) resolving（短反馈）──► playing
+                  │                       │
+                  └────pause────► paused ◄┘
+                                   └──resume──► 暂停前状态
 ```
 
 | 状态 | 输入 | 时间 |
@@ -66,13 +69,14 @@ menu ──start──► playing ──life=0──► gameover ──home─�
 | `menu` | 只响应 UI 按钮 | 不推进门 |
 | `playing` | 换道；推进门的 `t ∈ [0,1]` | `t` 到 1 进入判定 |
 | `resolving` | 锁换道或仍允许（本版锁） | 短闪反馈，门匀速穿过镜头后生成下一组 |
+| `paused` | 只响应暂停菜单 | 逻辑与渲染时钟冻结；不透明遮罩隐藏题目和道路 |
 | `gameover` | UI | 写排名一次，防重复提交 |
 
 `FrameSnapshot` 是渲染唯一输入，字段应保持可序列化，便于以后录像或测试。
 
 ```ts
 interface FrameSnapshot {
-  phase: "menu" | "playing" | "resolving" | "gameover";
+  phase: "menu" | "playing" | "resolving" | "paused" | "gameover";
   lanes: number;
   playerLane: number;
   playerDisplayX: number; // 0..1 插值，仅视觉

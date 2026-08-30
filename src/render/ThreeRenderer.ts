@@ -111,7 +111,7 @@ export class ThreeRenderer implements IRenderer {
     const now = performance.now();
     const dt = Math.min(0.05, Math.max(0, (now - this.lastFrameAt) / 1000));
     this.lastFrameAt = now;
-    this.elapsed += dt;
+    if (snapshot.phase !== "paused") this.elapsed += dt;
 
     const active = snapshot.phase === "playing" || snapshot.phase === "resolving";
     if (active) this.worldDistance += dt * 13.5;

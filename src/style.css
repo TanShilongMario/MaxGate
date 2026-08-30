@@ -85,7 +85,40 @@ button { font: inherit; }
   backdrop-filter: blur(10px) saturate(120%);
 }
 
-.hud-left { justify-self: start; }
+.hud-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  padding: 7px 10px 7px 7px;
+}
+
+.hud-left-info { min-width: 0; }
+
+.pause-button {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 3px 0 var(--mint-dark);
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: auto;
+  transition: transform 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
+}
+
+.pause-button:active {
+  transform: translateY(2px) scale(0.96);
+  box-shadow: 0 1px 0 var(--mint-dark);
+}
 
 .hud-goal {
   min-width: 0;
@@ -153,6 +186,37 @@ button { font: inherit; }
 }
 
 .overlay.hidden { display: none; }
+
+.pause-overlay {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  padding: calc(24px + var(--safe-top)) 20px calc(24px + var(--safe-bottom));
+  place-items: center;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18) 0 5%, transparent 5.5%),
+    radial-gradient(circle at 82% 27%, rgba(255, 214, 90, 0.24) 0 7%, transparent 7.5%),
+    linear-gradient(180deg, #8bd9cf 0 46%, #79bd78 46% 100%);
+}
+
+.pause-card {
+  width: min(360px, 100%);
+  padding: 28px 22px 22px;
+  border: 3px solid rgba(255, 255, 255, 0.84);
+  border-radius: 30px;
+  background: var(--cream);
+  box-shadow: 0 9px 0 rgba(102, 79, 49, 0.14), 0 22px 48px rgba(45, 72, 53, 0.24);
+  text-align: center;
+  animation: pause-arrive 220ms var(--ease-out) both;
+}
+
+.pause-copy {
+  margin: 10px 0 18px;
+  color: var(--brown-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
 
 .screen {
   position: relative;
@@ -334,6 +398,11 @@ h2 { font-size: 28px; }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes pause-arrive {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 @media (max-height: 720px) {
   .screen { padding-top: 24px; }
   .brand-mark { width: 58px; height: 58px; top: -26px; }
@@ -351,7 +420,7 @@ h2 { font-size: 28px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .screen { animation: none; }
+  .screen, .pause-card { animation: none; }
   .btn, .difficulty-option { transition: opacity 140ms ease, background 140ms ease; }
 }
 

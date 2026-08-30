@@ -18,10 +18,15 @@
       <canvas id="game-canvas"></canvas>
       <div id="hud" class="hud hidden" aria-live="polite">
         <div class="hud-pill hud-left">
-          <div class="lives" id="lives"></div>
-          <div class="hud-subline">
-            <span class="stage" id="stage">第 1 段</span>
-            <span class="difficulty-badge" id="difficulty-badge">经典</span>
+          <button type="button" class="pause-button" id="btn-pause" aria-label="暂停游戏">
+            <span aria-hidden="true">Ⅱ</span>
+          </button>
+          <div class="hud-left-info">
+            <div class="lives" id="lives"></div>
+            <div class="hud-subline">
+              <span class="stage" id="stage">第 1 段</span>
+              <span class="difficulty-badge" id="difficulty-badge">经典</span>
+            </div>
           </div>
         </div>
         <div class="hud-goal" aria-label="当前目标">选择更大的数</div>
@@ -72,6 +77,16 @@
           <button type="button" class="btn primary" id="btn-retry">再来一局</button>
           <button type="button" class="btn ghost" id="btn-over-ranking">查看纪录</button>
           <button type="button" class="btn ghost" id="btn-home">回主菜单</button>
+        </section>
+      </div>
+      <div id="pause-overlay" class="pause-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+        <section class="pause-card">
+          <p class="eyebrow">RUN PAUSED</p>
+          <h2 id="pause-title">游戏暂停</h2>
+          <p class="pause-copy">道路和题目已遮挡，计时完全停止。</p>
+          <button type="button" class="btn primary" id="btn-resume">继续游戏</button>
+          <button type="button" class="btn ghost" id="btn-pause-retry">重新开始</button>
+          <button type="button" class="btn ghost" id="btn-pause-home">回主菜单</button>
         </section>
       </div>
     </div>

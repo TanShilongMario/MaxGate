@@ -56,4 +56,33 @@ describe("Game 换道不应立刻扣命", () => {
     game.update(1);
     expect(game.phase).toBe("playing");
   });
+
+  it("暂停时冻结题目时间并锁定换道，恢复后从原进度继续", () => {
+    const game = new Game(new MemoryRanking());
+    game.start("classic");
+    game.update(360);
+    game.update(500);
+    const before = game.snapshot();
+    const laneBefore = game.playerLane;
+    game.pause();
+    game.update(5000);
+    game.applyIntents([{ type: "lane", delta: 1 }]);
+    expect(game.phase).toBe("paused");
+    expect(game.snapshot().door?.approach).toBe(before.door?.approach);
+    expect(game.playerLane).toBe(laneBefore);
+    game.resume();
+    game.update(100);
+    expect(game.phase).toBe("playing");
+    expect(game.snapshot().door!.approach).toBeGreaterThan(before.door!.approach);
+  });
+
+  it("结束页回主菜单会真正重置游戏状态", () => {
+    const game = new Game(new MemoryRanking());
+    game.start();
+    game.phase = "gameover";
+    game.returnToMenu();
+    expect(game.phase).toBe("menu");
+    expect(game.snapshot().door).toBeNull();
+    expect(game.snapshot().resolve).toBeNull();
+  });
 });

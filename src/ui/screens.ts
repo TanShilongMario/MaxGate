@@ -14,6 +14,7 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
   const menu = el("screen-menu");
   const rankingScreen = el("screen-ranking");
   const over = el("screen-over");
+  const pauseOverlay = el("pause-overlay");
   let selectedDifficulty: DifficultyMode = "classic";
   let previousScore = 0;
 
@@ -36,9 +37,26 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
     show(overlay, false);
   });
   el("btn-home").addEventListener("click", () => {
+    game.returnToMenu();
     hideAll();
     overlay.classList.remove("hidden");
     menu.classList.remove("hidden");
+  });
+  el("btn-pause").addEventListener("click", () => game.pause());
+  el("btn-resume").addEventListener("click", () => game.resume());
+  el("btn-pause-retry").addEventListener("click", () => {
+    game.start(game.difficulty);
+  });
+  el("btn-pause-home").addEventListener("click", () => {
+    game.returnToMenu();
+    hideAll();
+    overlay.classList.remove("hidden");
+    menu.classList.remove("hidden");
+  });
+  window.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" && event.key.toLowerCase() !== "p") return;
+    if (game.phase === "paused") game.resume();
+    else game.pause();
   });
   el("btn-over-ranking").addEventListener("click", () => void openRanking(true));
 
@@ -64,6 +82,7 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
   function sync(snap: FrameSnapshot): void {
     const inPlay = snap.phase === "playing" || snap.phase === "resolving";
     hud.classList.toggle("hidden", !inPlay);
+    pauseOverlay.classList.toggle("hidden", snap.phase !== "paused");
     if (inPlay) {
       const scoreNode = el("score");
       scoreNode.textContent = String(snap.hud.score);

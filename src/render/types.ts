@@ -1,4 +1,4 @@
-export type GamePhase = "menu" | "playing" | "resolving" | "gameover";
+export type GamePhase = "menu" | "playing" | "resolving" | "paused" | "gameover";
 
 export interface DoorSnapshot {
   approach: number;

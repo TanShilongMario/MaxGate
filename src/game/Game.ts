@@ -31,6 +31,7 @@ export class Game {
   lastRecord: RunRecord | null = null;
   difficulty: DifficultyMode = "classic";
   private gateIndex = 0;
+  private phaseBeforePause: "playing" | "resolving" | null = null;
 
   private door: ActiveDoor | null = null;
   private resolve:
@@ -55,9 +56,29 @@ export class Game {
     this.difficulty = difficulty;
     this.gateIndex = 0;
     this.resolve = null;
+    this.phaseBeforePause = null;
     this.spawnDoor();
     this.playerLane = Math.floor((this.config.lanes - 1) / 2);
     this.displayX = this.laneToX(this.playerLane);
+  }
+
+  pause(): void {
+    if (this.phase !== "playing" && this.phase !== "resolving") return;
+    this.phaseBeforePause = this.phase;
+    this.phase = "paused";
+  }
+
+  resume(): void {
+    if (this.phase !== "paused" || !this.phaseBeforePause) return;
+    this.phase = this.phaseBeforePause;
+    this.phaseBeforePause = null;
+  }
+
+  returnToMenu(): void {
+    this.phase = "menu";
+    this.phaseBeforePause = null;
+    this.door = null;
+    this.resolve = null;
   }
 
   applyIntents(intents: LaneIntent[]): void {
