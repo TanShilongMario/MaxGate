@@ -54,4 +54,23 @@ describe("Game 换道不应立刻扣命", () => {
     game.update(200);
     expect(game.phase).toBe("playing");
   });
+
+  it("判定后旧门继续越过镜头，而不是停住后缩回远处", () => {
+    const game = new Game(new MemoryRanking());
+    game.start("classic");
+    const internal = game as unknown as { door: { approach: number } };
+
+    game.update(360);
+    game.update(3000);
+    expect(game.phase).toBe("resolving");
+    expect(internal.door.approach).toBe(1);
+
+    game.update(75);
+    expect(game.phase).toBe("resolving");
+    expect(internal.door.approach).toBeCloseTo(1.21);
+
+    game.update(75);
+    expect(game.phase).toBe("playing");
+    expect(internal.door.approach).toBe(0);
+  });
 });

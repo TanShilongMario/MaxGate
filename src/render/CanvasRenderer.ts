@@ -251,21 +251,20 @@ export class CanvasRenderer implements IRenderer {
 
   private drawDoors(ctx: CanvasRenderingContext2D, snap: FrameSnapshot, time: number): void {
     const door = snap.door!;
-    const a = easeApproach(door.approach);
+    const travel = perspectiveTravel(door.approach);
     const horizonY = this.h * HORIZON_RATIO;
-    const groundProgress = lerp(0.035, 0.72, a);
+    const groundProgress = lerp(0.08, 0.75, travel);
     const baseY = horizonY + (this.h - horizonY) * groundProgress;
     const roadTopW = this.w * 0.045;
     const roadBotW = Math.min(this.w * 1.04, this.h * 0.69);
     const roadWidth = lerp(roadTopW, roadBotW, groundProgress);
-    const readableMinWidth = Math.min(this.w * 0.18, 72 * this.dpr);
-    const totalW = Math.max(readableMinWidth, roadWidth * 0.9);
+    const totalW = roadWidth * 0.9;
     const laneW = totalW / snap.lanes;
-    const height = Math.min(this.h * 0.18, Math.max(38 * this.dpr, laneW * 1.42));
+    const height = laneW * 1.38;
     const topY = baseY - height;
     const left = (this.w - totalW) / 2;
 
-    ctx.fillStyle = `rgba(89,67,42,${lerp(0.08, 0.2, a)})`;
+    ctx.fillStyle = `rgba(89,67,42,${lerp(0.08, 0.2, Math.min(1, travel))})`;
     ctx.beginPath();
     ctx.ellipse(this.w / 2, baseY + height * 0.035, totalW * 0.48, height * 0.085, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -280,11 +279,11 @@ export class CanvasRenderer implements IRenderer {
       ctx.save();
       if (correctFlash) {
         ctx.shadowColor = `rgba(255, 244, 125, ${pulse})`;
-        ctx.shadowBlur = 24 * this.dpr * lerp(0.45, 1, a);
+        ctx.shadowBlur = 24 * this.dpr * lerp(0.45, 1, Math.min(1, travel));
       }
       ctx.fillStyle = wrongFlash ? "#ffe0d8" : correctFlash ? "#fff7aa" : COLORS.cream;
       ctx.strokeStyle = wrongFlash ? COLORS.coral : correctFlash ? COLORS.yellow : COLORS.brown;
-      ctx.lineWidth = Math.max(2.5 * this.dpr, this.w * 0.006 * lerp(0.45, 1, a));
+      ctx.lineWidth = Math.max(1.2 * this.dpr, laneW * 0.045);
       archPath(ctx, x, topY, w, height);
       ctx.fill();
       ctx.stroke();
@@ -417,8 +416,13 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, x: number, y: numb
   ctx.fillText(text, x, y);
 }
 
-function easeApproach(t: number): number {
-  return t * (0.55 + 0.45 * t);
+function perspectiveTravel(t: number): number {
+  if (t > 1) return 1 + (t - 1) * 1.32;
+  const clamped = Math.max(0, t);
+  const farDepth = 2.5;
+  const depth = farDepth - (farDepth - 1) * clamped;
+  const inverseFar = 1 / farDepth;
+  return (1 / depth - inverseFar) / (1 - inverseFar);
 }
 
 function lerp(a: number, b: number, t: number): number {

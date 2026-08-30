@@ -72,6 +72,10 @@ export class Game {
     this.displayX += (target - this.displayX) * Math.min(1, dt / 70);
 
     if (this.phase === "resolving" && this.resolve) {
+      if (this.door) {
+        const exitStep = (dt / this.config.resolveMs) * 0.42;
+        this.door.approach = Math.min(1.42, this.door.approach + exitStep);
+      }
       this.resolve.remain -= dt;
       if (this.resolve.remain <= 0) {
         this.resolve = null;
