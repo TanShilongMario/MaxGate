@@ -283,10 +283,6 @@ export class CanvasRenderer implements IRenderer {
       ctx.fill();
       ctx.stroke();
 
-      ctx.fillStyle = correctFlash ? COLORS.mint : "#c6eadf";
-      roundRect(ctx, x + w * 0.12, y + height * 0.16, w * 0.76, height * 0.24, height * 0.1);
-      ctx.fill();
-
       ctx.fillStyle = "rgba(111,77,49,0.13)";
       ctx.beginPath();
       ctx.arc(x + w * 0.8, y + height * 0.65, Math.max(2, w * 0.035), 0, Math.PI * 2);

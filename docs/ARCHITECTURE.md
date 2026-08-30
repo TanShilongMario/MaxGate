@@ -10,7 +10,7 @@
 2. **题目是纯函数。** 给定 `seed + doorIndex + stage`，生成与求值可单测、可复盘。
 3. **排名可替换存储。** 内核依赖 `RankingAdapter`，默认本地缓存。
 4. **禁止 `eval`。** 表达式是 AST，展示层只负责排版。
-5. **先 2D，后 3D。** Three.js 是可选渲染后端，不是引擎核心。
+5. **逻辑与 3D 分离。** Three.js 是默认渲染后端，但不是规则引擎核心；Canvas 仍可作为降级后端。
 
 ---
 
@@ -191,22 +191,22 @@ interface IRenderer {
 
 | 实现 | 何时用 |
 | --- | --- |
-| `CanvasRenderer` | 默认。透视梯形跑道 + 门板 + 角色剪影 |
-| `ThreeRenderer`（未实现） | 角色骨骼、粒子、更长的纵深镜头 |
+| `ThreeRenderer` | 默认。积木世界、对象池道路/树木、透明门与日夜循环 |
+| `CanvasRenderer` | 备用。透视梯形跑道 + 门板 + 角色剪影 |
 
 装配点只在 `main.ts`：
 
 ```ts
-const renderer: IRenderer = new CanvasRenderer();
-// const renderer: IRenderer = new ThreeRenderer();
+const renderer: IRenderer = new ThreeRenderer();
 ```
 
-Three.js 接入清单（以后做）：
+Three.js 实现约定：
 
-1. 新依赖 `three`，实现同一接口；
+1. 依赖 `three`，实现同一接口；
 2. 世界坐标系：Z 向前，X 为泳道，门沿 Z 逼近；
-3. 公式用 CSS2D 或 CanvasTexture，避免 3D 文字糊；
+3. 公式用 CanvasTexture，只绘制字形，不在门上叠加额外圆角底板；
 4. 玩法 `approach` 仍由逻辑时间驱动，Three 只做插值显示。
+5. 道路块和树木在镜头后方回收并重置到雾中；山与云只做低速视差，不向玩家高速逼近。
 
 **不要**在 Three 的 `requestAnimationFrame` 里推进游戏时间。时间源只有一个：主循环。
 

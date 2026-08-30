@@ -1,7 +1,7 @@
 import { Game } from "./game/Game";
 import { InputManager } from "./input/InputManager";
 import { LocalRankingAdapter } from "./ranking";
-import { CanvasRenderer } from "./render/CanvasRenderer";
+import { ThreeRenderer } from "./render/ThreeRenderer";
 import type { IRenderer } from "./render/types";
 import { bindScreens } from "./ui/screens";
 
@@ -13,8 +13,7 @@ if (!(canvas instanceof HTMLCanvasElement)) {
 const ranking = new LocalRankingAdapter();
 const game = new Game(ranking);
 const input = new InputManager();
-const renderer: IRenderer = new CanvasRenderer();
-// 需要 3D 时改为：const renderer: IRenderer = new ThreeRenderer();
+const renderer: IRenderer = new ThreeRenderer();
 const ui = bindScreens(game, ranking);
 
 renderer.mount(canvas);
