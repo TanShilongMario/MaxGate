@@ -101,7 +101,8 @@ export class ThreeRenderer implements IRenderer {
     this.renderer.setPixelRatio(Math.min(dpr, 1.7));
     this.renderer.setSize(cssWidth, cssHeight, false);
     this.camera.aspect = cssWidth / Math.max(1, cssHeight);
-    this.camera.fov = this.camera.aspect < 0.72 ? 57 : 48;
+    const portrait = THREE.MathUtils.clamp((0.78 - this.camera.aspect) / 0.32, 0, 1);
+    this.camera.fov = THREE.MathUtils.lerp(48, 61, portrait);
     this.camera.updateProjectionMatrix();
   }
 
@@ -472,13 +473,14 @@ export class ThreeRenderer implements IRenderer {
   }
 
   private updateCamera(): void {
-    const portrait = this.cssWidth / Math.max(1, this.cssHeight) < 0.72;
-    const baseY = portrait ? 6.8 : 6.2;
-    const baseZ = portrait ? 12.2 : 11.2;
+    const aspect = this.cssWidth / Math.max(1, this.cssHeight);
+    const portrait = THREE.MathUtils.clamp((0.78 - aspect) / 0.32, 0, 1);
+    const baseY = THREE.MathUtils.lerp(6.2, 7, portrait);
+    const baseZ = THREE.MathUtils.lerp(11.2, 12.6, portrait);
     const jitterX = this.shake > 0.002 ? Math.sin(this.elapsed * 72) * this.shake : 0;
     const jitterY = this.shake > 0.002 ? Math.cos(this.elapsed * 63) * this.shake * 0.5 : 0;
     this.camera.position.set(jitterX, baseY + jitterY, baseZ);
-    this.camera.lookAt(0, 1.35, -20);
+    this.camera.lookAt(0, THREE.MathUtils.lerp(1.35, 1.6, portrait), -20);
   }
 }
 

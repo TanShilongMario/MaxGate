@@ -26,12 +26,20 @@ body {
   margin: 0;
   width: 100%;
   height: 100%;
+  min-height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
   background: #8bd9cf;
   color: var(--brown);
   touch-action: none;
   user-select: none;
   font-weight: 600;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  height: var(--app-height, 100dvh);
 }
 
 button { font: inherit; }
@@ -40,10 +48,14 @@ button { font: inherit; }
   position: relative;
   width: 100%;
   height: 100%;
+  min-height: 0;
   isolation: isolate;
+  overflow: hidden;
 }
 
 #game-canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -145,7 +157,7 @@ button { font: inherit; }
 .screen {
   position: relative;
   width: min(430px, 100%);
-  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 32px);
+  max-height: calc(var(--app-height, 100dvh) - var(--safe-top) - var(--safe-bottom) - 32px);
   overflow: visible;
   padding: 30px 22px 20px;
   border: 3px solid rgba(255, 255, 255, 0.8);
@@ -291,7 +303,7 @@ h2 { font-size: 28px; }
 .ranking-list {
   margin: 14px 0 8px;
   padding: 0;
-  max-height: 42vh;
+  max-height: 42dvh;
   overflow: auto;
   list-style: none;
 }
