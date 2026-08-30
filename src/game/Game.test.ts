@@ -51,7 +51,9 @@ describe("Game 换道不应立刻扣命", () => {
     game.update(3100);
     expect(game.lives).toBe(2);
     expect(internal.gateIndex).toBe(1);
-    game.update(200);
+    game.update(899);
+    expect(game.phase).toBe("resolving");
+    game.update(1);
     expect(game.phase).toBe("playing");
   });
 });

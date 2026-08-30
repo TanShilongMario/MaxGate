@@ -23,7 +23,7 @@ export const DIFFICULTY_MODES: Record<
   rush: { label: "冲刺", description: "难题，但留出计算时间", speed: 1.08, gap: 0.82, stageBoost: 2 },
 };
 
-const RESOLVE_MS = 150;
+const RESOLVE_MS = 900;
 const HIDE_AFTER = 0.38;
 const WINDOW_FLOOR = 1400;
 

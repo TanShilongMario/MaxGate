@@ -24,7 +24,7 @@ describe("difficulty curve", () => {
     expect(c.lanes).toBe(2);
     expect(c.windowMs).toBe(3000);
     expect(c.minGap).toBeGreaterThanOrEqual(20);
-    expect(c.resolveMs).toBeLessThanOrEqual(160);
+    expect(c.resolveMs).toBe(900);
   });
 
   it("三种难度有稳定的节奏差", () => {

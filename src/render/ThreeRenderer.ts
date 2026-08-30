@@ -350,10 +350,11 @@ export class ThreeRenderer implements IRenderer {
     if (key !== this.gateKey) this.rebuildGate(snapshot);
 
     let z = THREE.MathUtils.lerp(GATE_FAR_Z, GATE_NEAR_Z, snapshot.door.approach);
+    let resolveElapsed = 0;
     if (snapshot.resolve) {
       if (this.resolvingSince === null) this.resolvingSince = this.elapsed;
-      const exit = Math.min(1, (this.elapsed - this.resolvingSince) / 0.15);
-      z = THREE.MathUtils.lerp(GATE_NEAR_Z, 14.5, exit * exit);
+      resolveElapsed = this.elapsed - this.resolvingSince;
+      z = GATE_NEAR_Z + resolveElapsed * 14;
     } else {
       this.resolvingSince = null;
     }
@@ -365,13 +366,14 @@ export class ThreeRenderer implements IRenderer {
       material.emissive.setHex(0x000000);
       material.emissiveIntensity = 0;
       material.opacity = 0.38;
-      if (snapshot.resolve?.correct && i === snapshot.resolve.answer) {
+      const feedbackActive = resolveElapsed < 0.18;
+      if (feedbackActive && snapshot.resolve?.correct && i === snapshot.resolve.answer) {
         const pulse = 0.55 + Math.sin(this.elapsed * 42) * 0.25;
         material.color.setHex(PALETTE.yellow);
         material.emissive.setHex(PALETTE.yellow);
         material.emissiveIntensity = pulse * 1.8;
         material.opacity = 0.5;
-      } else if (snapshot.resolve && !snapshot.resolve.correct && i === snapshot.resolve.chosen) {
+      } else if (feedbackActive && snapshot.resolve && !snapshot.resolve.correct && i === snapshot.resolve.chosen) {
         material.color.setHex(0xff8b7a);
         material.opacity = 0.42;
       }
@@ -497,12 +499,12 @@ function makeTextTexture(text: string, fontSize: number, outline: boolean): THRE
     ctx.font = `900 ${fittedSize}px ${family}`;
   }
   if (outline) {
-    ctx.strokeStyle = "rgba(255, 249, 223, 0.9)";
-    ctx.lineWidth = 18;
+    ctx.strokeStyle = "rgba(63, 45, 32, 0.48)";
+    ctx.lineWidth = 14;
     ctx.lineJoin = "round";
     ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
   }
-  ctx.fillStyle = "#6f4d31";
+  ctx.fillStyle = "#ffffff";
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
