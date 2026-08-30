@@ -11,7 +11,6 @@ const GATE_NEAR_Z = 0.2;
 const PLAYER_Z = 0.2;
 
 const PALETTE = {
-  night: new THREE.Color("#34405f"),
   day: new THREE.Color("#83d9d1"),
   grass: 0x79bd67,
   grassDark: 0x55a263,
@@ -37,7 +36,7 @@ export class ThreeRenderer implements IRenderer {
   private readonly player = new THREE.Group();
   private readonly glassMaterials: THREE.MeshStandardMaterial[] = [];
   private readonly labelTextures: THREE.Texture[] = [];
-  private readonly sunMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.yellow });
+  private readonly sunMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.yellow, fog: false });
   private readonly cloudMaterial = new THREE.MeshStandardMaterial({
     color: 0xfffdf0,
     roughness: 0.95,
@@ -48,7 +47,7 @@ export class ThreeRenderer implements IRenderer {
   private readonly markerMaterial = new THREE.MeshStandardMaterial({ color: PALETTE.cream, roughness: 0.9 });
   private readonly hemi = new THREE.HemisphereLight(0xdafcff, 0x56724e, 2.2);
   private readonly sunLight = new THREE.DirectionalLight(0xfff0bd, 2.8);
-  private readonly sun = new THREE.Mesh(new THREE.BoxGeometry(5.5, 5.5, 1.2), this.sunMaterial);
+  private readonly sun = new THREE.Mesh(new THREE.CircleGeometry(4.2, 48), this.sunMaterial);
   private elapsed = 0;
   private lastFrameAt = performance.now();
   private worldDistance = 0;
@@ -92,7 +91,6 @@ export class ThreeRenderer implements IRenderer {
     this.buildTrees();
     this.buildMountains();
     this.buildClouds();
-    this.buildInstructionSign();
     this.buildPlayer();
   }
 
@@ -124,7 +122,7 @@ export class ThreeRenderer implements IRenderer {
     this.updateWorld(snapshot, dt);
     this.updateGate(snapshot);
     this.updatePlayer(snapshot);
-    this.updateDayCycle();
+    this.updateDayCycle(snapshot);
     this.updateCamera();
     this.renderer.render(this.scene, this.camera);
   }
@@ -160,24 +158,27 @@ export class ThreeRenderer implements IRenderer {
   }
 
   private buildRoad(): void {
-    const roadGeometry = new THREE.BoxGeometry(ROAD_WIDTH, 0.42, ROAD_TILE_LENGTH - 0.12);
+    const roadLength = 240;
+    const roadCenterZ = -96;
+    const roadGeometry = new THREE.BoxGeometry(ROAD_WIDTH, 0.42, roadLength);
     const roadMaterial = new THREE.MeshStandardMaterial({ color: PALETTE.road, roughness: 0.92 });
-    const edgeGeometry = new THREE.BoxGeometry(0.32, 0.16, ROAD_TILE_LENGTH - 0.1);
+    const edgeGeometry = new THREE.BoxGeometry(0.32, 0.16, roadLength);
     const edgeMaterial = new THREE.MeshStandardMaterial({ color: PALETTE.roadSide, roughness: 0.88 });
+
+    const road = new THREE.Mesh(roadGeometry, roadMaterial);
+    road.position.set(0, -0.18, roadCenterZ);
+    road.receiveShadow = true;
+    this.world.add(road);
+    for (const side of [-1, 1]) {
+      const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+      edge.position.set(side * (ROAD_WIDTH / 2 + 0.15), 0.01, roadCenterZ);
+      edge.receiveShadow = true;
+      this.world.add(edge);
+    }
 
     for (let i = 0; i < ROAD_TILE_COUNT; i++) {
       const tile = new THREE.Group();
       tile.userData.index = i;
-      const road = new THREE.Mesh(roadGeometry, roadMaterial);
-      road.position.y = -0.18;
-      road.receiveShadow = true;
-      tile.add(road);
-      for (const side of [-1, 1]) {
-        const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
-        edge.position.set(side * (ROAD_WIDTH / 2 + 0.15), 0.01, 0);
-        edge.receiveShadow = true;
-        tile.add(edge);
-      }
       const markers = new THREE.Group();
       markers.name = "lane-markers";
       tile.add(markers);
@@ -264,39 +265,21 @@ export class ThreeRenderer implements IRenderer {
       cloud.userData.baseX = -42 + i * 14;
       cloud.userData.speed = 0.22 + (i % 3) * 0.08;
       cloud.position.set(cloud.userData.baseX, 15 + (i % 3) * 3.2, -58 - (i % 2) * 24);
-      const size = 1.2 + (i % 3) * 0.25;
-      for (const [x, y, scale] of [[-1.5, 0, 1], [0, 0.35, 1.35], [1.55, 0, 0.95]] as const) {
-        const block = new THREE.Mesh(new THREE.BoxGeometry(size * scale, size, size), this.cloudMaterial);
-        block.position.set(x * size, y * size, 0);
+      const size = 1.05 + (i % 3) * 0.18;
+      for (const [x, y, z, sx, sy, sz] of [
+        [-1.05, 0, 0, 1.35, 0.78, 0.9],
+        [0, 0.18, 0.08, 1.65, 1.08, 1.05],
+        [1.18, -0.04, 0.02, 1.25, 0.72, 0.88],
+        [-0.42, 0.72, -0.04, 0.88, 0.72, 0.82],
+        [0.58, 0.65, 0.04, 1.05, 0.8, 0.9],
+      ] as const) {
+        const block = new THREE.Mesh(new THREE.BoxGeometry(size * sx, size * sy, size * sz), this.cloudMaterial);
+        block.position.set(x * size, y * size, z * size);
         cloud.add(block);
       }
       this.clouds.push(cloud);
       this.scene.add(cloud);
     }
-  }
-
-  private buildInstructionSign(): void {
-    const sign = new THREE.Group();
-    const border = new THREE.Mesh(
-      new THREE.BoxGeometry(7.5, 1.35, 0.34),
-      new THREE.MeshStandardMaterial({ color: PALETTE.brown, roughness: 0.82 }),
-    );
-    const face = new THREE.Mesh(
-      new THREE.BoxGeometry(7.12, 1.02, 0.38),
-      new THREE.MeshStandardMaterial({ color: PALETTE.cream, roughness: 0.86 }),
-    );
-    face.position.z = 0.05;
-    sign.add(border, face);
-    const texture = makeTextTexture("选择更大的数", 108, false);
-    this.labelTextures.push(texture);
-    const label = new THREE.Mesh(
-      new THREE.PlaneGeometry(5.9, 0.75),
-      new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }),
-    );
-    label.position.z = 0.4;
-    sign.add(label);
-    sign.position.set(0, 8.4, -23);
-    this.scene.add(sign);
   }
 
   private buildPlayer(): void {
@@ -405,7 +388,7 @@ export class ThreeRenderer implements IRenderer {
     });
     this.gateRoot.clear();
     this.glassMaterials.length = 0;
-    this.labelTextures.splice(1).forEach((texture) => texture.dispose());
+    this.labelTextures.splice(0).forEach((texture) => texture.dispose());
 
     const lanes = snapshot.lanes;
     const cellWidth = ROAD_WIDTH / lanes;
@@ -440,20 +423,12 @@ export class ThreeRenderer implements IRenderer {
       this.gateRoot.add(glass);
       this.glassMaterials.push(glassMaterial);
 
-      const lintel = new THREE.Mesh(
-        new THREE.BoxGeometry(cellWidth - 0.18, 0.38, 0.58),
-        new THREE.MeshStandardMaterial({ color: PALETTE.coral, roughness: 0.76 }),
-      );
-      lintel.position.set(centerX, 3.75, 0);
-      lintel.castShadow = true;
-      this.gateRoot.add(lintel);
-
       const label = snapshot.door!.hidden[lane] ? "?" : snapshot.door!.labels[lane] ?? "";
-      const texture = makeTextTexture(label, label.length > 5 ? 112 : 164, true);
+      const texture = makeTextTexture(label, label.length > 5 ? 160 : 220, true);
       texture.anisotropy = this.renderer?.capabilities.getMaxAnisotropy() ?? 1;
       this.labelTextures.push(texture);
       const text = new THREE.Mesh(
-        new THREE.PlaneGeometry(cellWidth * 0.76, 1.05),
+        new THREE.PlaneGeometry(cellWidth * 0.86, 1.22),
         new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }),
       );
       text.position.set(centerX, 2.15, 0.34);
@@ -473,23 +448,25 @@ export class ThreeRenderer implements IRenderer {
     this.player.rotation.z = Math.sin(this.elapsed * 9.5) * 0.018;
   }
 
-  private updateDayCycle(): void {
-    const phase = (this.elapsed / 180 + 0.22) % 1;
-    const angle = phase * Math.PI * 2;
-    const sunHeight = Math.sin(angle);
-    const daylight = THREE.MathUtils.smoothstep(sunHeight, -0.2, 0.5);
-    const sky = PALETTE.night.clone().lerp(PALETTE.day, daylight);
+  private updateDayCycle(snapshot: FrameSnapshot): void {
+    const journey = THREE.MathUtils.clamp(snapshot.hud.doorsPassed / 220, 0, 1);
+    const noonBlend = THREE.MathUtils.smoothstep(snapshot.hud.doorsPassed, 0, 80);
+    const duskBlend = THREE.MathUtils.smoothstep(snapshot.hud.doorsPassed, 155, 220);
+    const morning = new THREE.Color("#b8ded3");
+    const dusk = new THREE.Color("#e6a27b");
+    const sky = morning.lerp(PALETTE.day, noonBlend).lerp(dusk, duskBlend * 0.72);
     this.scene.background = sky;
     if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.copy(sky);
-    this.hemi.intensity = THREE.MathUtils.lerp(0.55, 2.2, daylight);
-    this.sunLight.intensity = THREE.MathUtils.lerp(0.15, 2.8, daylight);
-    this.sunLight.color.set(daylight > 0.45 ? 0xfff0bd : 0xffa47c);
-    const sunX = Math.cos(angle) * 30;
-    const sunY = 5 + sunHeight * 20;
-    this.sun.position.set(sunX, sunY, -86);
-    this.sun.visible = sunY > -4;
+    this.hemi.intensity = THREE.MathUtils.lerp(2.05, 1.65, duskBlend);
+    this.sunLight.intensity = THREE.MathUtils.lerp(2.45, 1.9, duskBlend);
+    this.sunLight.color.set(duskBlend > 0.35 ? 0xffb982 : 0xfff0bd);
+    const angle = THREE.MathUtils.lerp(Math.PI * 0.2, Math.PI * 0.8, journey);
+    const sunX = Math.cos(angle) * 34;
+    const sunY = 7 + Math.sin(angle) * 23;
+    this.sun.position.set(sunX, sunY, -150);
+    this.sun.visible = true;
     this.sunLight.position.set(sunX * 0.45, Math.max(5, sunY), -18);
-    this.cloudMaterial.opacity = THREE.MathUtils.lerp(0.38, 0.86, daylight);
+    this.cloudMaterial.opacity = THREE.MathUtils.lerp(0.88, 0.72, duskBlend);
   }
 
   private updateCamera(): void {
@@ -505,17 +482,23 @@ export class ThreeRenderer implements IRenderer {
 
 function makeTextTexture(text: string, fontSize: number, outline: boolean): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
-  canvas.width = 768;
-  canvas.height = 256;
+  canvas.width = 1024;
+  canvas.height = 384;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("2D canvas unavailable for text texture");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = `900 ${fontSize}px Nunito, "Noto Sans SC", "PingFang SC", sans-serif`;
+  const family = 'Nunito, "Noto Sans SC", "PingFang SC", sans-serif';
+  let fittedSize = fontSize;
+  ctx.font = `900 ${fittedSize}px ${family}`;
+  while (fittedSize > 58 && ctx.measureText(text).width > canvas.width * 0.88) {
+    fittedSize -= 4;
+    ctx.font = `900 ${fittedSize}px ${family}`;
+  }
   if (outline) {
     ctx.strokeStyle = "rgba(255, 249, 223, 0.9)";
-    ctx.lineWidth = 13;
+    ctx.lineWidth = 18;
     ctx.lineJoin = "round";
     ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
   }

@@ -420,8 +420,10 @@ export function getStageConfig(
       ],
     });
   }
+  const lanes: 2 | 3 | 4 = mode === "rush" && config.lanes === 2 ? 3 : config.lanes;
   return {
     ...config,
+    lanes,
     windowMs: Math.max(WINDOW_FLOOR, Math.round(config.windowMs * tuning.speed)),
     minGap: Math.max(0.8, config.minGap * tuning.gap),
   };

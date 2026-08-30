@@ -37,6 +37,12 @@ describe("difficulty curve", () => {
     expect(classic.minGap).toBeGreaterThan(rush.minGap);
   });
 
+  it("冲刺模式从第一题就使用 3 条甬道", () => {
+    expect(getStageConfig(0, "cozy").lanes).toBe(2);
+    expect(getStageConfig(0, "classic").lanes).toBe(2);
+    expect(getStageConfig(0, "rush").lanes).toBe(3);
+  });
+
   it("经典模式在第 6 题开始乘除", () => {
     expect(tiersOf(5, "classic")).toContain("mul_div");
     expect(tiersOf(5, "classic")).toContain("add_sub");
