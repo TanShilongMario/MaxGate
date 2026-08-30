@@ -112,6 +112,7 @@ button { font: inherit; }
 }
 
 .hud-right { text-align: right; }
+.hud-right { min-width: 74px; padding-inline: 16px; }
 
 .overlay {
   position: absolute;
@@ -129,7 +130,7 @@ button { font: inherit; }
   position: relative;
   width: min(430px, 100%);
   max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 32px);
-  overflow: auto;
+  overflow: visible;
   padding: 30px 22px 20px;
   border: 3px solid rgba(255, 255, 255, 0.8);
   border-radius: 34px 34px 28px 28px;
@@ -173,14 +174,6 @@ button { font: inherit; }
   font-size: 14px;
 }
 
-.eyebrow {
-  margin: 8px 0 5px;
-  color: var(--mint-dark);
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-}
-
 h1,
 h2 {
   margin: 0;
@@ -189,7 +182,7 @@ h2 {
   letter-spacing: -0.025em;
 }
 
-h1 { font-size: clamp(29px, 8vw, 38px); line-height: 1.08; }
+h1 { margin-top: 7px; font-size: clamp(29px, 8vw, 38px); line-height: 1.08; }
 h2 { font-size: 28px; }
 
 .lead,

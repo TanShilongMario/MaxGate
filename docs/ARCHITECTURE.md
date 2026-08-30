@@ -1,4 +1,4 @@
-# 数门大冒险 MaxGate · 架构说明
+# 数字大冒险 MaxGate · 架构说明
 
 本文描述模块边界、数据流和扩展点。产品规则以 [PRD.md](./PRD.md) 为准；曲线数值以 [DIFFICULTY.md](./DIFFICULTY.md) 为准。
 

@@ -78,7 +78,6 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
         );
       }
       previousScore = snap.hud.score;
-      el("doors").textContent = `${snap.hud.doorsPassed} 扇门`;
       el("stage").textContent = `第 ${snap.hud.stage} 段`;
       el("difficulty-badge").textContent = DIFFICULTY_MODES[snap.hud.difficulty].label;
       el("lives").textContent = "❤".repeat(snap.hud.lives) + "♡".repeat(Math.max(0, 3 - snap.hud.lives));

@@ -1,4 +1,4 @@
-# 数门大冒险 MaxGate · 难度与节奏
+# 数字大冒险 MaxGate · 难度与节奏
 
 实现源：`src/difficulty/curve.ts`。文档与代码冲突时以代码为准。
 
