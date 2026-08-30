@@ -2,6 +2,8 @@
 
 从多条泳道里选出**数值最大**的那扇门。玩法接近 Temple Run 的左右变轨，核心却是限时心算与判断。
 
+**[在线试玩 GitHub Pages](https://tanshilongmario.github.io/MaxGate/)**
+
 当前仓库包含：
 
 - 产品需求文档（PRD）
