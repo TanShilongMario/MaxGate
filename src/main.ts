@@ -1,3 +1,4 @@
+import { ChiptuneAudio } from "./audio/ChiptuneAudio";
 import { Game } from "./game/Game";
 import { InputManager } from "./input/InputManager";
 import { LocalRankingAdapter } from "./ranking";
@@ -19,7 +20,8 @@ const ranking = new LocalRankingAdapter();
 const game = new Game(ranking);
 const input = new InputManager();
 const renderer: IRenderer = new ThreeRenderer();
-const ui = bindScreens(game, ranking);
+const audio = new ChiptuneAudio();
+const ui = bindScreens(game, ranking, audio);
 
 renderer.mount(canvas);
 input.attach(app);
@@ -47,6 +49,7 @@ function frame(now: number): void {
   game.update(dt);
   const snap = game.snapshot();
   renderer.render(snap);
+  audio.sync(snap);
   ui.sync(snap);
   requestAnimationFrame(frame);
 }

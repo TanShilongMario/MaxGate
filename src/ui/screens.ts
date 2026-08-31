@@ -6,7 +6,11 @@ import {
   type DifficultyMode,
 } from "../difficulty/curve";
 
-export function bindScreens(game: Game, ranking: RankingAdapter): {
+export function bindScreens(
+  game: Game,
+  ranking: RankingAdapter,
+  audio: { activate: () => void; beginRun: () => void },
+): {
   sync: (snap: FrameSnapshot) => void;
 } {
   const overlay = el("overlay");
@@ -16,7 +20,10 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
   const over = el("screen-over");
   const pauseOverlay = el("pause-overlay");
   let selectedDifficulty: DifficultyMode = "classic";
+  let rankingDifficulty: DifficultyMode = "classic";
+  let rankingRecords: RunRecord[] = [];
   let previousScore = 0;
+  let lastLifeAwardGate = -1;
 
   for (const option of document.querySelectorAll<HTMLButtonElement>(".difficulty-option")) {
     option.addEventListener("click", () => {
@@ -28,11 +35,15 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
   }
 
   el("btn-start").addEventListener("click", () => {
+    audio.beginRun();
+    lastLifeAwardGate = -1;
     game.start(selectedDifficulty);
     show(overlay, false);
   });
   el("btn-ranking").addEventListener("click", () => void openRanking());
   el("btn-retry").addEventListener("click", () => {
+    audio.beginRun();
+    lastLifeAwardGate = -1;
     game.start(game.difficulty);
     show(overlay, false);
   });
@@ -43,8 +54,13 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
     menu.classList.remove("hidden");
   });
   el("btn-pause").addEventListener("click", () => game.pause());
-  el("btn-resume").addEventListener("click", () => game.resume());
+  el("btn-resume").addEventListener("click", () => {
+    audio.activate();
+    game.resume();
+  });
   el("btn-pause-retry").addEventListener("click", () => {
+    audio.beginRun();
+    lastLifeAwardGate = -1;
     game.start(game.difficulty);
   });
   el("btn-pause-home").addEventListener("click", () => {
@@ -60,12 +76,22 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
   });
   el("btn-over-ranking").addEventListener("click", () => void openRanking(true));
 
+  for (const tab of document.querySelectorAll<HTMLButtonElement>(".ranking-tab")) {
+    tab.addEventListener("click", () => {
+      rankingDifficulty = tab.dataset.rankingDifficulty as DifficultyMode;
+      renderRankingTabs(rankingDifficulty);
+      renderRanking(rankingRecords, rankingDifficulty);
+    });
+  }
+
   async function openRanking(fromOver = false): Promise<void> {
     hideAll();
     overlay.classList.remove("hidden");
     rankingScreen.classList.remove("hidden");
-    const records = await ranking.list();
-    renderRanking(records);
+    rankingDifficulty = fromOver ? game.difficulty : selectedDifficulty;
+    rankingRecords = await ranking.list();
+    renderRankingTabs(rankingDifficulty);
+    renderRanking(rankingRecords, rankingDifficulty);
     rankingScreen.dataset.from = fromOver ? "over" : "menu";
   }
 
@@ -99,7 +125,20 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
       previousScore = snap.hud.score;
       el("stage").textContent = `第 ${snap.hud.stage} 段`;
       el("difficulty-badge").textContent = DIFFICULTY_MODES[snap.hud.difficulty].label;
-      el("lives").textContent = "❤".repeat(snap.hud.lives) + "♡".repeat(Math.max(0, 3 - snap.hud.lives));
+      const livesNode = el("lives");
+      livesNode.textContent = "❤".repeat(snap.hud.lives) + "♡".repeat(Math.max(0, 3 - snap.hud.lives));
+      if (snap.resolve?.lifeAwarded && lastLifeAwardGate !== snap.hud.gateIndex) {
+        lastLifeAwardGate = snap.hud.gateIndex;
+        livesNode.animate(
+          [
+            { transform: "scale(1)", color: "#ff7f74" },
+            { transform: "scale(1.2)", color: "#159b89", offset: 0.45 },
+            { transform: "scale(1)", color: "#ff7f74" },
+          ],
+          { duration: 260, easing: "cubic-bezier(0.23, 1, 0.32, 1)" },
+        );
+      }
+      el("hud-goal").classList.toggle("goal-dismissed", snap.hud.gateIndex >= 3);
     }
 
     if (snap.phase === "gameover") {
@@ -125,12 +164,14 @@ export function bindScreens(game: Game, ranking: RankingAdapter): {
   return { sync };
 }
 
-function renderRanking(records: RunRecord[]): void {
+function renderRanking(records: RunRecord[], difficulty: DifficultyMode): void {
   const list = el("ranking-list");
   const empty = el("ranking-empty");
+  const filtered = records.filter((record) => record.difficulty === difficulty);
   list.innerHTML = "";
-  empty.classList.toggle("hidden", records.length > 0);
-  for (const [i, r] of records.slice(0, 20).entries()) {
+  empty.textContent = `${DIFFICULTY_MODES[difficulty].label}难度还没有纪录。`;
+  empty.classList.toggle("hidden", filtered.length > 0);
+  for (const [i, r] of filtered.slice(0, 20).entries()) {
     const li = document.createElement("li");
     const time = new Date(r.endedAt).toLocaleString("zh-CN", {
       month: "numeric",
@@ -140,6 +181,14 @@ function renderRanking(records: RunRecord[]): void {
     });
     li.innerHTML = `<span class="rank-n">${i + 1}</span><span class="rank-score">${r.score}</span><span class="rank-meta">${r.doorsPassed} 门 · 段${r.maxStage} · ${time}</span>`;
     list.appendChild(li);
+  }
+}
+
+function renderRankingTabs(difficulty: DifficultyMode): void {
+  for (const tab of document.querySelectorAll<HTMLButtonElement>(".ranking-tab")) {
+    const selected = tab.dataset.rankingDifficulty === difficulty;
+    tab.classList.toggle("selected", selected);
+    tab.setAttribute("aria-selected", String(selected));
   }
 }
 

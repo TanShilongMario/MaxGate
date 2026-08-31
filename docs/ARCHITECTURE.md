@@ -46,6 +46,7 @@
 | 难度 | `src/difficulty` | `core`、表达式的 *tier 枚举* | 渲染 |
 | 排名 | `src/ranking` | 无（或 `core` 的 id） | 游戏循环内部字段乱写 |
 | 输入 | `src/input` | DOM | 游戏规则 |
+| 音频 | `src/audio` | 可序列化快照、Web Audio | 修改游戏状态 |
 | 渲染 | `src/render` | 快照类型 | 改分数/生命 |
 | 局内 | `src/game` | 以上除具体 Canvas 细节 | 具体画线 API |
 | UI 壳 | `src/ui` `main.ts` | 全部装配 | 把规则写进按钮回调 |
@@ -227,6 +228,7 @@ interface RunRecord {
   score: number;
   doorsPassed: number;
   maxStage: number;
+  difficulty: "cozy" | "classic" | "rush";
   seed: string;
   endedAt: number;       // epoch ms
   clientVersion: string;
@@ -243,7 +245,7 @@ interface RankingAdapter {
 
 - key: `maxgate.ranking.v1`
 - value: `{ version: 1, playerId, nickname?, records: RunRecord[] }`
-- `submit` 生成 id，unshift/push 后按分数排序截断。
+- `submit` 生成 id，按难度分别保留前 50 条；旧纪录缺少难度时迁移到 `classic`。
 
 ### 9.2 Remote（预留，不实现）
 
@@ -267,12 +269,16 @@ function frame(now):
   dt = min(now - last, 50)      // 后台回来不一次跳好几门
   last = now
   game.update(dt, input.drain())
-  renderer.render(game.snapshot())
-  ui.sync(game.snapshot())      // HUD / overlay 显隐
+  snap = game.snapshot()
+  renderer.render(snap)
+  audio.sync(snap)              // 门进度分 8 拍；判定帧触发 SFX
+  ui.sync(snap)                 // HUD / overlay 显隐
   raf(frame)
 ```
 
 `dt` 上限防止切后台后瞬间判定多组门。
+
+音频不维护独立 BPM 时钟：当前门的 `approach` 是唯一节拍源，因此难度改变题目窗口时，音乐会同步加速或减速而不会累积漂移。AudioContext 只在用户点击开始/继续后创建或恢复，以满足移动浏览器的自动播放策略。
 
 ---
 

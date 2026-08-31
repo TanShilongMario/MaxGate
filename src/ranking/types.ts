@@ -12,6 +12,7 @@ export interface RunRecord {
   score: number;
   doorsPassed: number;
   maxStage: number;
+  difficulty: DifficultyMode;
   seed: string;
   endedAt: number;
   clientVersion: string;
@@ -39,3 +40,4 @@ export function sortRecords(records: RunRecord[]): RunRecord[] {
     return b.endedAt - a.endedAt;
   });
 }
+import type { DifficultyMode } from "../difficulty/curve";

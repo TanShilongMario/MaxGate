@@ -6,6 +6,7 @@ function rec(partial: Partial<RunRecord> & Pick<RunRecord, "score" | "doorsPasse
     id: partial.id ?? "x",
     playerId: "p",
     maxStage: 1,
+    difficulty: "classic",
     seed: "s",
     clientVersion: "0.1.0",
     ...partial,

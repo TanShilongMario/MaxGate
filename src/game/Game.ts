@@ -35,7 +35,7 @@ export class Game {
 
   private door: ActiveDoor | null = null;
   private resolve:
-    | { correct: boolean; chosen: number; answer: number; remain: number }
+    | { correct: boolean; chosen: number; answer: number; lifeAwarded: boolean; remain: number }
     | null = null;
   private config: StageConfig = getStageConfig(0);
   private submitted = false;
@@ -136,6 +136,7 @@ export class Game {
       door: this.door
         ? {
             approach: this.door.approach,
+            windowMs: this.door.windowMs,
             labels: this.door.gate.labels,
             hidden: this.door.hidden,
             correctLane: this.phase === "resolving" ? this.door.gate.correctLane : null,
@@ -146,12 +147,14 @@ export class Game {
             correct: this.resolve.correct,
             chosen: this.resolve.chosen,
             answer: this.resolve.answer,
+            lifeAwarded: this.resolve.lifeAwarded,
           }
         : null,
       hud: {
         lives: this.lives,
         score: this.score,
         doorsPassed: this.doorsPassed,
+        gateIndex: this.gateIndex,
         stage: this.config.stage,
         difficulty: this.difficulty,
       },
@@ -201,9 +204,14 @@ export class Game {
     if (!this.door) return;
     const chosen = this.playerLane;
     const correct = chosen === this.door.gate.correctLane;
+    let lifeAwarded = false;
     if (correct) {
       this.score += 10;
       this.doorsPassed += 1;
+      if (this.doorsPassed % 20 === 0 && this.lives < 3) {
+        this.lives += 1;
+        lifeAwarded = true;
+      }
     } else {
       this.lives -= 1;
     }
@@ -213,6 +221,7 @@ export class Game {
       correct,
       chosen,
       answer: this.door.gate.correctLane,
+      lifeAwarded,
       remain: this.config.resolveMs,
     };
   }
@@ -224,6 +233,7 @@ export class Game {
       score: this.score,
       doorsPassed: this.doorsPassed,
       maxStage: this.maxStage,
+      difficulty: this.difficulty,
       seed: this.seed,
       endedAt: Date.now(),
       clientVersion: CLIENT_VERSION,

@@ -2,6 +2,7 @@ export type GamePhase = "menu" | "playing" | "resolving" | "paused" | "gameover"
 
 export interface DoorSnapshot {
   approach: number;
+  windowMs: number;
   labels: string[];
   hidden: boolean[];
   correctLane: number | null;
@@ -11,12 +12,14 @@ export interface ResolveSnapshot {
   correct: boolean;
   chosen: number;
   answer: number;
+  lifeAwarded: boolean;
 }
 
 export interface HudSnapshot {
   lives: number;
   score: number;
   doorsPassed: number;
+  gateIndex: number;
   stage: number;
   difficulty: "cozy" | "classic" | "rush";
 }

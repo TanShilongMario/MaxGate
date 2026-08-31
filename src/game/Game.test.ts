@@ -16,6 +16,7 @@ class MemoryRanking implements RankingAdapter {
       score: record.score,
       doorsPassed: record.doorsPassed,
       maxStage: record.maxStage,
+      difficulty: record.difficulty,
       seed: record.seed,
       endedAt: record.endedAt,
       clientVersion: record.clientVersion,
@@ -84,5 +85,34 @@ describe("Game 换道不应立刻扣命", () => {
     expect(game.phase).toBe("menu");
     expect(game.snapshot().door).toBeNull();
     expect(game.snapshot().resolve).toBeNull();
+  });
+
+  it("每通过 20 扇门恢复一条生命，但最多 3 条", () => {
+    const game = new Game(new MemoryRanking());
+    game.start("classic");
+    game.lives = 1;
+
+    for (let passed = 0; passed < 20; passed++) {
+      const internal = game as unknown as { door: { gate: { correctLane: number } } };
+      game.playerLane = internal.door.gate.correctLane;
+      if (passed === 0) game.update(360);
+      game.update(6000);
+      if (passed < 19) game.update(900);
+    }
+    expect(game.doorsPassed).toBe(20);
+    expect(game.lives).toBe(2);
+    expect(game.snapshot().resolve?.lifeAwarded).toBe(true);
+
+    game.update(900);
+    game.lives = 3;
+    for (let passed = 20; passed < 40; passed++) {
+      const internal = game as unknown as { door: { gate: { correctLane: number } } };
+      game.playerLane = internal.door.gate.correctLane;
+      game.update(6000);
+      if (passed < 39) game.update(900);
+    }
+    expect(game.doorsPassed).toBe(40);
+    expect(game.lives).toBe(3);
+    expect(game.snapshot().resolve?.lifeAwarded).toBe(false);
   });
 });

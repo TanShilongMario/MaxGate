@@ -7,6 +7,7 @@ import {
 } from "./types";
 
 const MAX_RECORDS = 50;
+const DIFFICULTIES = ["cozy", "classic", "rush"] as const;
 
 function emptyStore(): RankingStoreV1 {
   return {
@@ -30,7 +31,13 @@ function readStore(): RankingStoreV1 {
       writeStore(created);
       return created;
     }
-    return parsed;
+    return {
+      ...parsed,
+      records: parsed.records.map((record) => ({
+        ...record,
+        difficulty: DIFFICULTIES.includes(record.difficulty) ? record.difficulty : "classic",
+      })),
+    };
   } catch {
     const created = emptyStore();
     writeStore(created);
@@ -61,7 +68,12 @@ export class LocalRankingAdapter implements RankingAdapter {
       id: record.id ?? crypto.randomUUID(),
       playerId: store.playerId,
     };
-    store.records = sortRecords([saved, ...store.records]).slice(0, MAX_RECORDS);
+    const counts = { cozy: 0, classic: 0, rush: 0 };
+    store.records = sortRecords([saved, ...store.records]).filter((candidate) => {
+      if (counts[candidate.difficulty] >= MAX_RECORDS) return false;
+      counts[candidate.difficulty] += 1;
+      return true;
+    });
     writeStore(store);
     return saved;
   }

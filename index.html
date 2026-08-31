@@ -29,7 +29,7 @@
             </div>
           </div>
         </div>
-        <div class="hud-goal" aria-label="当前目标">选择更大的数</div>
+        <div class="hud-goal" id="hud-goal" aria-label="当前目标">选择最大的数</div>
         <div class="hud-pill hud-right" aria-label="积分">
           <div class="score" id="score">0</div>
         </div>
@@ -65,6 +65,11 @@
         <section id="screen-ranking" class="screen hidden">
           <p class="eyebrow">LOCAL CACHE</p>
           <h2>个人纪录</h2>
+          <div class="ranking-tabs" role="tablist" aria-label="排行榜难度">
+            <button type="button" class="ranking-tab" role="tab" data-ranking-difficulty="cozy">轻松</button>
+            <button type="button" class="ranking-tab selected" role="tab" data-ranking-difficulty="classic">经典</button>
+            <button type="button" class="ranking-tab" role="tab" data-ranking-difficulty="rush">冲刺</button>
+          </div>
           <ol id="ranking-list" class="ranking-list"></ol>
           <p class="hint" id="ranking-empty">还没有纪录。先跑一局。</p>
           <button type="button" class="btn primary" id="btn-ranking-back">返回</button>
