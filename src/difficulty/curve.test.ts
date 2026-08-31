@@ -63,12 +63,20 @@ describe("difficulty curve", () => {
   });
 
   it("新增泳道时仍会还时间与间隙", () => {
-    const before = getStageConfig(124, "classic");
-    const debut = getStageConfig(125, "classic");
+    const before = getStageConfig(59, "classic");
+    const debut = getStageConfig(60, "classic");
     expect(before.lanes).toBe(2);
     expect(debut.lanes).toBe(3);
     expect(debut.windowMs).toBeGreaterThan(before.windowMs);
     expect(debut.minGap).toBeGreaterThan(before.minGap);
+    expect(debut.tiers.map((tier) => tier.tier)).toEqual(["literal", "add_sub"]);
+  });
+
+  it("经典模式提前进入三道课程后不会在 125 门重复教学", () => {
+    expect(getStageConfig(124, "classic").lanes).toBe(3);
+    expect(getStageConfig(125, "classic").lanes).toBe(3);
+    expect(tiersOf(125, "classic")).toContain("negative");
+    expect(tiersOf(125, "classic")).not.toContain("literal");
   });
 
   it("第四道同样独立进场", () => {

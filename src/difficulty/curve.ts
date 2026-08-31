@@ -26,6 +26,8 @@ export const DIFFICULTY_MODES: Record<
 const RESOLVE_MS = 900;
 const HIDE_AFTER = 0.38;
 const WINDOW_FLOOR = 1400;
+const CLASSIC_THREE_LANE_START = 60;
+const CLASSIC_FOUR_LANE_START = 185;
 
 interface StageRow {
   lanes: 2 | 3 | 4;
@@ -38,7 +40,7 @@ interface StageRow {
 
 /**
  * 一次只拧一颗螺丝：
- * - 前 140 门只在 2 道上把四则做深：加减 → 乘除 → 两步链 → 括号高原
+ * - 基础表先在 2 道上把四则做深；经典模式在 60 门时提前进入第 15–20 行的三道课程
  * - 加第 3 / 第 4 道时回退题型、拉大间隙、把窗口还回去，再把括号重走一遍
  * - 三角、根号、遮挡都排在四则 + 多道已经站稳之后
  */
@@ -399,9 +401,18 @@ export function getStageConfig(
   const baseStage = stageFromDoors(doorsPassed);
   const tuning = DIFFICULTY_MODES[mode];
   const stage = doorsPassed < 5 ? 1 : baseStage + tuning.stageBoost;
+  let tableStage = stage;
+  if (
+    mode === "classic" &&
+    doorsPassed >= CLASSIC_THREE_LANE_START &&
+    doorsPassed < CLASSIC_FOUR_LANE_START
+  ) {
+    const threeLaneStep = Math.min(5, Math.floor((doorsPassed - CLASSIC_THREE_LANE_START) / 10));
+    tableStage = 15 + threeLaneStep;
+  }
   let config: StageConfig;
-  if (stage <= TABLE.length) {
-    config = toConfig(stage, TABLE[stage - 1]!);
+  if (tableStage <= TABLE.length) {
+    config = toConfig(stage, TABLE[tableStage - 1]!);
   } else {
     const extra = stage - TABLE.length;
     const last = TABLE[TABLE.length - 1]!;
